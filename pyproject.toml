@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meridian"
+version = "0.1.0"
+description = "Agentic retrieval-augmented generation over an arXiv corpus of LLM reasoning and evaluation papers."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+# Runtime dependencies are pinned in requirements.txt to keep a single source
+# of truth for reproducible installs (see Common Commands in CLAUDE.md).
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+    "httpx>=0.27.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "W"]
+# Long lines are tolerated inside formal docstrings.
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["meridian"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"
+asyncio_mode = "auto"
