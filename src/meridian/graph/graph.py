@@ -120,7 +120,10 @@ def run_query(query: str, thread_id: str = "default", session_id: str | None = N
         The final graph state, including ``generation`` and ``source``.
     """
     session_id = session_id or thread_id
-    config_dict = {"configurable": {"thread_id": thread_id}}
+    config_dict = {
+        "configurable": {"thread_id": thread_id},
+        "recursion_limit": 50,
+    }
     initial_state = {
         "query": query,
         "session_id": session_id,

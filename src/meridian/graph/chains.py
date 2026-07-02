@@ -77,24 +77,32 @@ _ROUTER_SYSTEM = (
     "You are a query classifier for a retrieval system over LLM reasoning and "
     "evaluation papers. Classify the query as 'factual' (asks for a specific "
     "fact or definition), 'comparative' (asks to compare methods or results), "
-    "or 'methodological' (asks how something is done or measured)."
+    "or 'methodological' (asks how something is done or measured). "
+    "Respond with a JSON object with exactly one key, 'query_type', whose value "
+    "is one of 'factual', 'comparative', or 'methodological'."
 )
 
 _HALLUCINATION_SYSTEM = (
     "You are a grader assessing whether an answer is grounded in the provided "
     "context. Return 'yes' only if the answer asserts facts that are not "
-    "supported by the context. Return 'no' if every claim is supported."
+    "supported by the context. Return 'no' if every claim is supported. "
+    "Respond with a JSON object with exactly one key, 'binary_score', whose "
+    "value is 'yes' or 'no'."
 )
 
 _ANSWER_SYSTEM = (
     "You are a grader assessing whether an answer resolves the user's question. "
-    "Return 'yes' if the answer directly addresses the question, else 'no'."
+    "Return 'yes' if the answer directly addresses the question, else 'no'. "
+    "Respond with a JSON object with exactly one key, 'binary_score', whose "
+    "value is 'yes' or 'no'."
 )
 
 _REWRITE_SYSTEM = (
     "You reformulate a user question into a single improved query that is more "
     "effective for dense and sparse retrieval. Preserve the original intent, "
-    "expand key technical terms, and remove conversational filler."
+    "expand key technical terms, and remove conversational filler. "
+    "Respond with a JSON object with exactly one key, 'rewritten_query', whose "
+    "value is the improved query string."
 )
 
 _GENERATION_SYSTEM = (
@@ -114,7 +122,7 @@ def get_router_chain() -> Runnable:
     prompt = ChatPromptTemplate.from_messages(
         [("system", _ROUTER_SYSTEM), ("human", "Query: {query}")]
     )
-    return prompt | _grading_llm().with_structured_output(RouteQuery)
+    return prompt | _grading_llm().with_structured_output(RouteQuery, method="json_mode")
 
 
 @lru_cache(maxsize=1)
@@ -126,7 +134,7 @@ def get_hallucination_chain() -> Runnable:
             ("human", "Context:\n{context}\n\nAnswer:\n{generation}"),
         ]
     )
-    return prompt | _grading_llm().with_structured_output(GradeHallucinations)
+    return prompt | _grading_llm().with_structured_output(GradeHallucinations, method="json_mode")
 
 
 @lru_cache(maxsize=1)
@@ -138,7 +146,7 @@ def get_answer_chain() -> Runnable:
             ("human", "Question:\n{query}\n\nAnswer:\n{generation}"),
         ]
     )
-    return prompt | _grading_llm().with_structured_output(GradeAnswer)
+    return prompt | _grading_llm().with_structured_output(GradeAnswer, method="json_mode")
 
 
 @lru_cache(maxsize=1)
@@ -147,7 +155,7 @@ def get_rewrite_chain() -> Runnable:
     prompt = ChatPromptTemplate.from_messages(
         [("system", _REWRITE_SYSTEM), ("human", "Original question: {query}")]
     )
-    return prompt | _grading_llm().with_structured_output(RewrittenQuery)
+    return prompt | _grading_llm().with_structured_output(RewrittenQuery, method="json_mode")
 
 
 @lru_cache(maxsize=1)

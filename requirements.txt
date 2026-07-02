@@ -37,6 +37,9 @@ datasets>=2.20.0
 
 # --- Ingestion pipeline ---
 prefect>=2.19,<3.0
+# Pinned: anyio>=4.5 breaks prefect 2.x's GatherTaskGroup (abstract method
+# mismatch with TaskGroup.create_task). See CLAUDE.md Breaking API Changes.
+anyio==4.4.0
 docling>=2.0.0
 
 # --- Metadata store ---
