@@ -1,0 +1,36 @@
+# Meridian HuggingFace Space runtime dependencies.
+# Trimmed from the project requirements.txt: no ingestion (Prefect, Docling,
+# arxiv, PostgreSQL) or dev/test tooling. The Space only serves queries
+# against a pre-built Qdrant index.
+
+gradio>=4.0,<5.0
+
+# --- Graph orchestration ---
+langgraph>=0.2.40,<0.3
+langgraph-checkpoint-sqlite>=2.0.0
+
+# --- LangChain core and integrations ---
+langchain-core>=0.3.0,<0.4
+langchain-groq>=0.2.0
+langchain-community>=0.3.0
+
+# --- Vector store and sparse retrieval ---
+qdrant-client>=1.11.0
+rank-bm25>=0.2.2
+
+# --- Embeddings and reranking ---
+sentence-transformers>=3.0.0
+transformers>=4.44.0
+torch>=2.2.0
+
+# --- LLM inference ---
+groq>=0.11.0
+
+# --- Observability ---
+langfuse>=2.50.0,<3.0
+
+# --- Web fallback ---
+tavily-python>=0.5.0
+
+# --- The meridian package itself ---
+-e .
