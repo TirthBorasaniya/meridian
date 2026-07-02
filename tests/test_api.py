@@ -45,7 +45,9 @@ def test_query_returns_answer_and_documents(monkeypatch):
             }
         ],
     }
-    monkeypatch.setattr(routes, "run_query", lambda query, thread_id="default": fake_state)
+    monkeypatch.setattr(
+        routes, "run_query", lambda query, thread_id="default", session_id=None: fake_state
+    )
     client = TestClient(app)
     response = client.post("/query", json={"query": "what is chain-of-thought?"})
     assert response.status_code == 200
