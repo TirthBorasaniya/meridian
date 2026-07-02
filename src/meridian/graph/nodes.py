@@ -10,6 +10,15 @@ detail. When Langfuse is unavailable the decorator degrades to a no-op.
 from functools import lru_cache
 
 from tavily import TavilyClient
+from tavily.errors import (
+    BadRequestError,
+    ForbiddenError,
+    InvalidAPIKeyError,
+    KeylessUnsupportedEndpointError,
+    MissingAPIKeyError,
+    TimeoutError,
+    UsageLimitExceededError,
+)
 
 from meridian.config import get_settings
 from meridian.graph.chains import (
@@ -101,9 +110,25 @@ def grade_documents(state: GraphState) -> dict:
 def web_search(state: GraphState) -> dict:
     """CRAG fallback: retrieve web context via Tavily when no corpus doc passed."""
     query = _active_query(state)
-    response = get_tavily_client().search(
-        query=query, max_results=5, search_depth="advanced"
-    )
+    try:
+        response = get_tavily_client().search(
+            query=query, max_results=5, search_depth="advanced"
+        )
+    except (
+        BadRequestError,
+        ForbiddenError,
+        InvalidAPIKeyError,
+        KeylessUnsupportedEndpointError,
+        MissingAPIKeyError,
+        UsageLimitExceededError,
+        TimeoutError,
+    ) as exc:
+        combined_result = (
+            "Web search fallback unavailable "
+            f"({exc}). No corpus documents passed the relevance threshold "
+            "for this query."
+        )
+        return {"web_search_result": combined_result, "source": "web"}
     combined_result = "\n\n".join(
         item.get("content", "") for item in response.get("results", [])
     )

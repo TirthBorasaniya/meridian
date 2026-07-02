@@ -8,9 +8,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# System libraries needed by psycopg and common ML wheels.
+# System libraries needed by psycopg, common ML wheels, and OpenCV
+# (docling's table-structure model imports cv2, which dlopens libGL/libglib
+# at runtime even in headless mode).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential libpq-dev \
+    && apt-get install -y --no-install-recommends \
+        build-essential libpq-dev libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies first for better layer caching. requirements.txt ends

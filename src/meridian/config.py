@@ -58,7 +58,7 @@ class Settings(BaseSettings):
         default="llama-3.1-8b-instant", validation_alias="GRADING_MODEL"
     )
     generation_model: str = Field(
-        default="llama-3.1-70b-versatile", validation_alias="GENERATION_MODEL"
+        default="llama-3.3-70b-versatile", validation_alias="GENERATION_MODEL"
     )
 
     # --- Checkpointing ---
