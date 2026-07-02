@@ -102,7 +102,9 @@ _GENERATION_SYSTEM = (
     "reasoning and evaluation research. Answer using only the provided context. "
     "Cite supporting passages by their bracketed index. If the context is "
     "insufficient to answer, state that explicitly rather than speculating. "
-    "Use formal technical language."
+    "Use formal technical language. Prior conversation turns, if any, are "
+    "provided for continuity only; ground the answer in the context, not in "
+    "unverified claims from earlier turns."
 )
 
 
@@ -154,7 +156,11 @@ def get_generation_chain() -> Runnable:
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", _GENERATION_SYSTEM),
-            ("human", "Question: {query}\n\nContext:\n{context}"),
+            (
+                "human",
+                "Conversation history:\n{conversation_history}\n\n"
+                "Question: {query}\n\nContext:\n{context}",
+            ),
         ]
     )
     return prompt | _generation_llm() | StrOutputParser()

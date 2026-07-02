@@ -115,7 +115,10 @@ def generate(state: GraphState) -> dict:
     """Generate an answer from the graded documents or the web result."""
     query = _active_query(state)
     context = _resolve_context(state)
-    generation = get_generation_chain().invoke({"query": query, "context": context})
+    conversation_history = state.get("conversation_history") or "(none)"
+    generation = get_generation_chain().invoke(
+        {"query": query, "context": context, "conversation_history": conversation_history}
+    )
     source = "web" if state.get("source") == "web" else "corpus"
     return {"generation": generation, "source": source}
 

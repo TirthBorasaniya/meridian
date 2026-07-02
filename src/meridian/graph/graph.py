@@ -28,6 +28,7 @@ from meridian.graph.nodes import (
     web_search,
 )
 from meridian.graph.state import GraphState
+from meridian.memory.session_store import get_session_context, save_turn
 
 
 def build_graph() -> StateGraph:
@@ -95,7 +96,7 @@ def get_graph():
     return build_graph().compile(checkpointer=get_checkpointer())
 
 
-def run_query(query: str, thread_id: str = "default") -> dict:
+def run_query(query: str, thread_id: str = "default", session_id: str | None = None) -> dict:
     """Execute the graph for a single query and return the final state.
 
     Parameters
@@ -104,13 +105,29 @@ def run_query(query: str, thread_id: str = "default") -> dict:
         The user question.
     thread_id : str, optional
         Checkpoint thread identifier. Reusing a thread id resumes that
-        conversation's persisted state. Defaults to ``"default"``.
+        conversation's persisted state within a running process. Defaults to
+        ``"default"``.
+    session_id : str or None, optional
+        Cross-session memory key. Distinct from ``thread_id``: it persists
+        conversation turns across process restarts via
+        :mod:`meridian.memory.session_store`, whereas ``thread_id`` only
+        resumes mid-graph state via ``SqliteSaver``. Defaults to ``thread_id``
+        when not given.
 
     Returns
     -------
     dict
         The final graph state, including ``generation`` and ``source``.
     """
+    session_id = session_id or thread_id
     config_dict = {"configurable": {"thread_id": thread_id}}
-    initial_state = {"query": query, "iteration_count": 0}
-    return get_graph().invoke(initial_state, config=config_dict)
+    initial_state = {
+        "query": query,
+        "session_id": session_id,
+        "conversation_history": get_session_context(session_id),
+        "iteration_count": 0,
+    }
+    final_state = get_graph().invoke(initial_state, config=config_dict)
+    save_turn(session_id, "user", query)
+    save_turn(session_id, "assistant", final_state.get("generation", ""))
+    return final_state

@@ -66,6 +66,12 @@ class Settings(BaseSettings):
         default="data/checkpoints/graph.db", validation_alias="CHECKPOINT_DB_PATH"
     )
 
+    # --- Cross-session memory (distinct from in-session SqliteSaver checkpointing) ---
+    session_db_path: str = Field(
+        default="data/checkpoints/sessions.db", validation_alias="SESSION_DB_PATH"
+    )
+    session_context_turns: int = Field(default=6, validation_alias="SESSION_CONTEXT_TURNS")
+
     # --- Corpus and ingestion ---
     arxiv_categories: tuple[str, ...] = ("cs.CL", "cs.LG", "cs.AI")
     arxiv_topic_terms: tuple[str, ...] = (

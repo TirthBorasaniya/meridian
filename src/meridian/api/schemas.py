@@ -11,6 +11,13 @@ class QueryRequest(BaseModel):
         default="default",
         description="Checkpoint thread id; reuse to resume a conversation.",
     )
+    session_id: str | None = Field(
+        default=None,
+        description=(
+            "Cross-session memory key; reuse to recall prior turns across "
+            "process restarts. Defaults to thread_id when not given."
+        ),
+    )
 
 
 class RetrievedDocument(BaseModel):

@@ -14,6 +14,8 @@ class GraphState(TypedDict, total=False):
     """Mutable state threaded through every node of the graph."""
 
     query: str  # original user query
+    session_id: str  # cross-session memory key, distinct from the checkpoint thread id
+    conversation_history: str  # prior turns for this session, recalled at graph start
     rewritten_query: str  # query after the rewrite node
     query_type: str  # "factual" | "comparative" | "methodological"
     retrieved_docs: list[dict]  # post-RRF, pre-cross-encoder candidates

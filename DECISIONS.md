@@ -108,6 +108,32 @@ left implicit or resolve ambiguities; none change the documented architecture.
     terms and a `submittedDate` range so the fetched corpus is domain-relevant
     rather than an arbitrary category sample.
 
+12. **Cross-session memory is a separate SQLite database, not the `SqliteSaver`
+    checkpoint file.** `SqliteSaver` persists mid-graph state for resuming an
+    in-flight run; it is not designed to be queried for conversation history.
+    `session_memory`/`session_summaries` tables in a dedicated
+    `sessions.db` (see `meridian/memory/session_store.py`) keep that concern
+    separate and let conversation recall survive process restarts
+    independent of graph checkpointing.
+
+13. **Production RAGAS scoring reads Langfuse observation input/output rather
+    than re-running the graph.** `scripts/score_production_traces.py` extracts
+    the query, graded context, and generation directly from the `generate`
+    and `grade_documents` spans that the existing `@observe`-wrapped nodes
+    already capture. This scores what actually happened in production instead
+    of replaying traffic, but it depends on the Langfuse SDK's trace and
+    observation attribute names, which have moved across SDK versions; verify
+    them against the installed `langfuse` version before relying on the
+    script.
+
+14. **HuggingFace Space deployment uploads `src/` and `pyproject.toml` alongside
+    `spaces/app.py`.** The Space's `requirements.txt` pins `-e .`, so the
+    `meridian` package must be present at the Space repo root for that install
+    step to succeed. `scripts/deploy_space.py` uploads `app.py`,
+    `requirements.txt`, and `README.md` from `spaces/` to the Space root and
+    `src/` plus `pyproject.toml` from the project root, rather than deploying
+    only the contents of `spaces/`.
+
 ## Not yet run
 
 Per the project plan, the code has been implemented but not executed: no
@@ -116,3 +142,10 @@ and no Git operations performed. The smoke and verification commands in
 CLAUDE.md (BGE prefix similarity, cross-encoder range, Qdrant client, SqliteSaver
 import) should be run after `pip install -r requirements.txt` before relying on
 the pipeline.
+
+The Phase 3-5 additions (cross-session memory, production trace scoring,
+HuggingFace Space deployment) are likewise implemented but unexecuted: no
+`sessions.db` has been created, no live query has been made against the
+compiled graph (`GROQ_API_KEY` is not configured), no traces exist in
+Langfuse to score, and the Space has not been deployed (`HF_TOKEN` is not
+set). See the exact manual commands in the final session summary.

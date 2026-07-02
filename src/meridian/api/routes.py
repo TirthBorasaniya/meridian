@@ -36,7 +36,9 @@ def _to_documents(graded_doc_list: list[dict]) -> list[RetrievedDocument]:
 @router.post("/query", response_model=QueryResponse)
 def post_query(request: QueryRequest) -> QueryResponse:
     """Run the agentic RAG graph for a single query."""
-    final_state = run_query(request.query, thread_id=request.thread_id)
+    final_state = run_query(
+        request.query, thread_id=request.thread_id, session_id=request.session_id
+    )
     graded_doc_list = final_state.get("graded_docs", [])
     return QueryResponse(
         query=request.query,
