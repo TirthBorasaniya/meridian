@@ -26,10 +26,15 @@ def get_qdrant_client() -> QdrantClient:
     """Return the process-wide cached Qdrant client.
 
     Uses a server URL when ``QDRANT_URL`` is set, otherwise local disk
-    persistence at ``QDRANT_PATH``.
+    persistence at ``QDRANT_PATH``. In server mode ``QDRANT_API_KEY`` is
+    forwarded when set; it is omitted when empty so that an unauthenticated
+    local Docker Compose Qdrant continues to work unchanged. The key is
+    irrelevant in local disk mode, where there is no server to authenticate to.
     """
     settings = get_settings()
     if settings.qdrant_url:
+        if settings.qdrant_api_key:
+            return QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key)
         return QdrantClient(url=settings.qdrant_url)
     return QdrantClient(path=settings.qdrant_path)
 
