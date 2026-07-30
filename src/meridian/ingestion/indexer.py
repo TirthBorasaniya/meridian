@@ -89,7 +89,10 @@ def index_chunks(chunk_list: list[dict], metadata_dict: dict) -> int:
 
     vector_list = embedder.embed_documents([chunk["text"] for chunk in chunk_list])
     point_list: list[PointStruct] = []
-    for chunk, vector in zip(chunk_list, vector_list):
+    # strict: the embedder returns one vector per chunk. A mismatch would pair
+    # chunks with the wrong vectors and silently corrupt the index, which is
+    # far worse to discover later than a loud failure here.
+    for chunk, vector in zip(chunk_list, vector_list, strict=True):
         payload_dict = {
             "chunk_id": chunk["chunk_id"],
             "arxiv_id": chunk["arxiv_id"],
@@ -135,7 +138,11 @@ def fetch_all_chunk_payloads() -> list[dict]:
             with_payload=True,
             with_vectors=False,
         )
-        payload_list.extend(point.payload for point in point_list)
+        # ``payload`` is Optional on the client's record type. Points are
+        # always upserted with a payload, but skipping any that lack one keeps
+        # None out of the list, which downstream BM25 indexing would treat as
+        # a dict and fail on.
+        payload_list.extend(point.payload for point in point_list if point.payload is not None)
         if next_offset is None:
             break
     return payload_list

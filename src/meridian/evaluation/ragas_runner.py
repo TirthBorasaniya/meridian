@@ -11,10 +11,9 @@ Target metrics after tuning: faithfulness >= 0.87, context precision >= 0.81.
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_groq import ChatGroq
 from ragas import EvaluationDataset, evaluate
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.llms import LangchainLLMWrapper
@@ -22,6 +21,7 @@ from ragas.metrics import Faithfulness, LLMContextPrecisionWithoutReference
 
 from meridian.config import get_settings
 from meridian.evaluation.question_set import get_questions
+from meridian.graph.chains import build_chat_groq
 from meridian.graph.graph import run_query
 
 EVAL_RESULTS_DIR = "data/eval_results"
@@ -62,7 +62,7 @@ def _summarize(result) -> dict:
 def _write_results(summary_dict: dict, output_dir: str) -> str:
     """Persist the summary to a timestamped file and update latest.json."""
     os.makedirs(output_dir, exist_ok=True)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     payload_dict = {"timestamp": timestamp, "scores": summary_dict}
 
     timestamped_path = os.path.join(output_dir, f"ragas_{timestamp}.json")
@@ -100,14 +100,7 @@ def run_evaluation(
     sample_list = _build_samples(question_list, thread_prefix)
 
     dataset = EvaluationDataset.from_list(sample_list)
-    evaluator_llm = LangchainLLMWrapper(
-        ChatGroq(
-            model=settings.generation_model,
-            api_key=settings.groq_api_key,
-            temperature=0.0,
-            max_retries=5,
-        )
-    )
+    evaluator_llm = LangchainLLMWrapper(build_chat_groq(settings.generation_model))
     evaluator_embeddings = LangchainEmbeddingsWrapper(
         HuggingFaceEmbeddings(model_name=settings.embedding_model)
     )

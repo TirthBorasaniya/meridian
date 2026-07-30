@@ -8,7 +8,7 @@ said in a prior session by ``session_id``.
 """
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import lru_cache
 
 from meridian.config import get_settings
@@ -63,7 +63,7 @@ def save_turn(session_id: str, role: str, content: str) -> None:
     connection.execute(
         "INSERT INTO session_memory (session_id, turn_index, role, content, timestamp_utc) "
         "VALUES (?, ?, ?, ?, ?)",
-        (session_id, next_turn_index, role, content, datetime.now(timezone.utc).isoformat()),
+        (session_id, next_turn_index, role, content, datetime.now(UTC).isoformat()),
     )
     connection.commit()
 
