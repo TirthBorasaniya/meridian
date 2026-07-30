@@ -5,10 +5,22 @@ call is made. The TestClient is used without its context manager so the
 lifespan warm-up does not run.
 """
 
+import pytest
 from fastapi.testclient import TestClient
 
 from meridian.api import routes
 from meridian.api.main import app
+from meridian.api.rate_limit import reset_rate_limit_state
+from meridian.api.schemas import MAX_QUERY_LENGTH
+from meridian.config import get_settings
+
+
+@pytest.fixture(autouse=True)
+def _clear_rate_limit_state():
+    """Reset the module-level limiter so counts do not leak between tests."""
+    reset_rate_limit_state()
+    yield
+    reset_rate_limit_state()
 
 
 def test_health_ok(monkeypatch):
@@ -56,6 +68,39 @@ def test_query_returns_answer_and_documents(monkeypatch):
     assert payload["num_documents"] == 1
     assert payload["documents"][0]["arxiv_id"] == "2201.00001"
     assert payload["iteration_count"] == 1
+
+
+def test_query_rejects_overlong_query():
+    client = TestClient(app)
+    response = client.post("/query", json={"query": "a" * (MAX_QUERY_LENGTH + 1)})
+    assert response.status_code == 422
+
+
+def test_query_rejects_empty_query():
+    client = TestClient(app)
+    response = client.post("/query", json={"query": ""})
+    assert response.status_code == 422
+
+
+def test_query_rejects_overlong_session_id():
+    client = TestClient(app)
+    response = client.post("/query", json={"query": "ok", "session_id": "s" * 129})
+    assert response.status_code == 422
+
+
+def test_query_rate_limited_after_allowance(monkeypatch):
+    monkeypatch.setattr(
+        routes, "run_query", lambda query, thread_id="default", session_id=None: {}
+    )
+    settings = get_settings()
+    client = TestClient(app)
+
+    for _ in range(settings.rate_limit_requests):
+        assert client.post("/query", json={"query": "hi"}).status_code == 200
+
+    response = client.post("/query", json={"query": "hi"})
+    assert response.status_code == 429
+    assert response.headers["Retry-After"]
 
 
 def test_eval_summary_absent(monkeypatch):

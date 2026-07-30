@@ -107,6 +107,16 @@ class Settings(BaseSettings):
     # --- Graph control ---
     max_iterations: int = 3
 
+    # --- API request limits ---
+    # ``/query`` is unauthenticated and calls paid Groq and Tavily APIs, so
+    # both the per-request size and the per-client request rate are bounded.
+    # Set ``RATE_LIMIT_REQUESTS`` to 0 to disable rate limiting.
+    max_query_length: int = Field(default=2000, validation_alias="MAX_QUERY_LENGTH")
+    rate_limit_requests: int = Field(default=20, validation_alias="RATE_LIMIT_REQUESTS")
+    rate_limit_window_seconds: int = Field(
+        default=60, validation_alias="RATE_LIMIT_WINDOW_SECONDS"
+    )
+
     # --- Embedding dimensionality of BAAI/bge-small-en-v1.5 ---
     embedding_dim: int = 384
 

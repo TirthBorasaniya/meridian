@@ -2,17 +2,33 @@
 
 from pydantic import BaseModel, Field
 
+from meridian.config import get_settings
+
+# Resolved once at import. The cap bounds the prompt that reaches the paid
+# generation model; identifier fields are bounded because they are used as
+# checkpoint and session-memory keys.
+MAX_QUERY_LENGTH = get_settings().max_query_length
+MAX_IDENTIFIER_LENGTH = 128
+
 
 class QueryRequest(BaseModel):
     """Body for the ``/query`` endpoint."""
 
-    query: str = Field(description="The user's natural-language question.")
+    query: str = Field(
+        min_length=1,
+        max_length=MAX_QUERY_LENGTH,
+        description="The user's natural-language question.",
+    )
     thread_id: str = Field(
         default="default",
+        min_length=1,
+        max_length=MAX_IDENTIFIER_LENGTH,
         description="Checkpoint thread id; reuse to resume a conversation.",
     )
     session_id: str | None = Field(
         default=None,
+        min_length=1,
+        max_length=MAX_IDENTIFIER_LENGTH,
         description=(
             "Cross-session memory key; reuse to recall prior turns across "
             "process restarts. Defaults to thread_id when not given."
