@@ -172,5 +172,9 @@ repository must not read, write, or execute anything outside it.
 
 ## License
 
-No license file is included yet. Add one before publishing if you intend to
-permit reuse.
+MIT. See [LICENSE](LICENSE).
+
+The licence covers this source code only. It does not cover the arXiv papers
+the ingestion pipeline downloads: those remain under their respective authors'
+licences, and parsed paper text is deliberately not committed to this
+repository.

@@ -11,8 +11,14 @@ venv/
 .venv/
 env/
 
-# Environment variables and secrets
+# Environment variables and secrets.
+# .env.* covers .env.local, .env.production and similar; .env.example is the
+# committed template and is explicitly re-included.
 .env
+.env.*
+!.env.example
+*.pem
+*.key
 
 # Local Claude Code settings (machine-specific, not for the repo)
 .claude/
@@ -39,8 +45,25 @@ data/checkpoints/*.db-shm
 data/eval_results/*
 !data/eval_results/.gitkeep
 
+# Databases and their SQLite sidecars, wherever they land.
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Model weights and checkpoints. Never committed; fetched from the hub or
+# produced by the pipeline.
+*.pt
+*.bin
+*.safetensors
+*.gguf
+
 # Hugging Face / sentence-transformers model cache
 .cache/
+
+# Node (no JS in the project today; defensive)
+node_modules/
 
 # Prefect local state
 .prefect/
