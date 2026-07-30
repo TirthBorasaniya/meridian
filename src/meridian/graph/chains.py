@@ -14,9 +14,53 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
 from langchain_groq import ChatGroq
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 from meridian.config import get_settings
+
+# Typing note for the ``# type: ignore[arg-type]`` comments below. mypy
+# resolves the langchain-groq annotations for ``with_structured_output`` and
+# for the ``api_key`` field against pydantic.v1, while the installed
+# langchain-groq imports pydantic v2 and accepts v2 models at runtime.
+# Passing pydantic.BaseModel itself fails the same check, which confirms the
+# mismatch is an upstream annotation lag rather than a defect here. Drop the
+# ignores once langchain-groq's annotations resolve to pydantic v2.
+
+
+def build_chat_groq(model: str) -> ChatGroq:
+    """Construct a Groq chat model with the project's shared settings.
+
+    Centralises the credential handling and retry policy used by the grading,
+    generation, and evaluation models.
+
+    Parameters
+    ----------
+    model : str
+        The Groq model identifier.
+
+    Returns
+    -------
+    ChatGroq
+        A configured client. ``max_retries`` covers Groq's tokens-per-minute
+        rate limiting, which the free tier enforces aggressively on the 70B
+        model.
+    """
+    settings = get_settings()
+    # ChatGroq expects SecretStr. Passing None when unset lets the client fall
+    # back to its own GROQ_API_KEY environment lookup rather than injecting an
+    # empty secret that would fail later with a less obvious error.
+    api_key = SecretStr(settings.groq_api_key) if settings.groq_api_key else None
+    return ChatGroq(
+        model=model,
+        api_key=api_key,  # type: ignore[arg-type]
+        temperature=0.0,
+        max_retries=5,
+        # Explicitly the field default. mypy synthesises ChatGroq.__init__ from
+        # the pydantic dataclass transform and loses the default of the
+        # alias-renamed ``stop``/``stop_sequences`` field, so it reports the
+        # argument as required.
+        stop_sequences=None,
+    )
 
 
 class RouteQuery(BaseModel):
@@ -52,25 +96,13 @@ class RewrittenQuery(BaseModel):
 @lru_cache(maxsize=1)
 def _grading_llm() -> ChatGroq:
     """Return the cached 8B grading model with rate-limit backoff."""
-    settings = get_settings()
-    return ChatGroq(
-        model=settings.grading_model,
-        api_key=settings.groq_api_key,
-        temperature=0.0,
-        max_retries=5,
-    )
+    return build_chat_groq(get_settings().grading_model)
 
 
 @lru_cache(maxsize=1)
 def _generation_llm() -> ChatGroq:
     """Return the cached 70B generation model with rate-limit backoff."""
-    settings = get_settings()
-    return ChatGroq(
-        model=settings.generation_model,
-        api_key=settings.groq_api_key,
-        temperature=0.0,
-        max_retries=5,
-    )
+    return build_chat_groq(get_settings().generation_model)
 
 
 _ROUTER_SYSTEM = (
@@ -122,7 +154,9 @@ def get_router_chain() -> Runnable:
     prompt = ChatPromptTemplate.from_messages(
         [("system", _ROUTER_SYSTEM), ("human", "Query: {query}")]
     )
-    return prompt | _grading_llm().with_structured_output(RouteQuery, method="json_mode")
+    # arg-type ignore: see the pydantic v1/v2 note at the top of this module.
+    structured = _grading_llm().with_structured_output(RouteQuery, method="json_mode")  # type: ignore[arg-type]
+    return prompt | structured
 
 
 @lru_cache(maxsize=1)
@@ -134,7 +168,9 @@ def get_hallucination_chain() -> Runnable:
             ("human", "Context:\n{context}\n\nAnswer:\n{generation}"),
         ]
     )
-    return prompt | _grading_llm().with_structured_output(GradeHallucinations, method="json_mode")
+    # arg-type ignore: see the pydantic v1/v2 note at the top of this module.
+    structured = _grading_llm().with_structured_output(GradeHallucinations, method="json_mode")  # type: ignore[arg-type]
+    return prompt | structured
 
 
 @lru_cache(maxsize=1)
@@ -146,7 +182,9 @@ def get_answer_chain() -> Runnable:
             ("human", "Question:\n{query}\n\nAnswer:\n{generation}"),
         ]
     )
-    return prompt | _grading_llm().with_structured_output(GradeAnswer, method="json_mode")
+    # arg-type ignore: see the pydantic v1/v2 note at the top of this module.
+    structured = _grading_llm().with_structured_output(GradeAnswer, method="json_mode")  # type: ignore[arg-type]
+    return prompt | structured
 
 
 @lru_cache(maxsize=1)
@@ -155,7 +193,9 @@ def get_rewrite_chain() -> Runnable:
     prompt = ChatPromptTemplate.from_messages(
         [("system", _REWRITE_SYSTEM), ("human", "Original question: {query}")]
     )
-    return prompt | _grading_llm().with_structured_output(RewrittenQuery, method="json_mode")
+    # arg-type ignore: see the pydantic v1/v2 note at the top of this module.
+    structured = _grading_llm().with_structured_output(RewrittenQuery, method="json_mode")  # type: ignore[arg-type]
+    return prompt | structured
 
 
 @lru_cache(maxsize=1)

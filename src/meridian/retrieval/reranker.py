@@ -63,7 +63,10 @@ class Reranker:
         score_list = self._model.predict(pair_list)
 
         scored_list: list[dict] = []
-        for doc, score in zip(doc_list, score_list):
+        # strict: the cross-encoder returns exactly one score per input pair.
+        # A length mismatch means the model misbehaved, and silently dropping
+        # the tail would score documents against the wrong scores.
+        for doc, score in zip(doc_list, score_list, strict=True):
             scored_doc = dict(doc)
             scored_doc["rerank_score"] = float(score)
             scored_list.append(scored_doc)
