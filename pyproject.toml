@@ -7,6 +7,7 @@ name = "meridian"
 version = "0.1.0"
 description = "Agentic retrieval-augmented generation over an arXiv corpus of LLM reasoning and evaluation papers."
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.11,<3.12"
 # Runtime dependencies are pinned in requirements.txt to keep a single source
 # of truth for reproducible installs (see Common Commands in CLAUDE.md).
