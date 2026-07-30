@@ -41,7 +41,11 @@ class Settings(BaseSettings):
     # --- Qdrant vector store ---
     # When ``qdrant_url`` is empty the client uses local disk persistence at
     # ``qdrant_path``. When set, it targets a Qdrant server.
+    # ``qdrant_api_key`` applies only to the server mode. Managed deployments
+    # (Qdrant Cloud) reject unauthenticated requests; a local Docker Compose
+    # Qdrant has no auth, so the key stays optional and is omitted when empty.
     qdrant_url: str = Field(default="", validation_alias="QDRANT_URL")
+    qdrant_api_key: str = Field(default="", validation_alias="QDRANT_API_KEY")
     qdrant_path: str = Field(default="data/qdrant_db", validation_alias="QDRANT_PATH")
     qdrant_collection: str = Field(
         default="meridian_papers", validation_alias="QDRANT_COLLECTION"
