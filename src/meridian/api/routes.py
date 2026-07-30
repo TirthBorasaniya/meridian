@@ -1,7 +1,8 @@
 """API route handlers for query, health, and evaluation summary."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from meridian.api.rate_limit import enforce_rate_limit
 from meridian.api.schemas import (
     EvalSummaryResponse,
     HealthResponse,
@@ -33,9 +34,12 @@ def _to_documents(graded_doc_list: list[dict]) -> list[RetrievedDocument]:
     return document_list
 
 
-@router.post("/query", response_model=QueryResponse)
+@router.post("/query", response_model=QueryResponse, dependencies=[Depends(enforce_rate_limit)])
 def post_query(request: QueryRequest) -> QueryResponse:
-    """Run the agentic RAG graph for a single query."""
+    """Run the agentic RAG graph for a single query.
+
+    Rate limited per client address; see :mod:`meridian.api.rate_limit`.
+    """
     final_state = run_query(
         request.query, thread_id=request.thread_id, session_id=request.session_id
     )
