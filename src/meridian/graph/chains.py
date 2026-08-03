@@ -27,7 +27,7 @@ from meridian.config import get_settings
 # ignores once langchain-groq's annotations resolve to pydantic v2.
 
 
-def build_chat_groq(model: str) -> ChatGroq:
+def build_chat_groq(model: str, **extra_kwargs) -> ChatGroq:
     """Construct a Groq chat model with the project's shared settings.
 
     Centralises the credential handling and retry policy used by the grading,
@@ -37,6 +37,10 @@ def build_chat_groq(model: str) -> ChatGroq:
     ----------
     model : str
         The Groq model identifier.
+    **extra_kwargs
+        Additional ChatGroq keyword arguments, for example ``max_tokens`` or
+        ``reasoning_effort``. Used by the RAGAS judge, where an unbounded
+        reasoning budget causes request timeouts.
 
     Returns
     -------
@@ -60,6 +64,7 @@ def build_chat_groq(model: str) -> ChatGroq:
         # alias-renamed ``stop``/``stop_sequences`` field, so it reports the
         # argument as required.
         stop_sequences=None,
+        **extra_kwargs,
     )
 
 
