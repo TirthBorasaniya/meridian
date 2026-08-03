@@ -1,6 +1,5 @@
 # Dockerfile for the Meridian API service.
-# Not enumerated in the CLAUDE.md directory structure; required by the
-# docker-compose `api` service build. See DECISIONS.md.
+# Required by the docker-compose `api` service build.
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
