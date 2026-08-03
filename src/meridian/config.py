@@ -24,6 +24,18 @@ class Settings(BaseSettings):
     # --- API credentials ---
     groq_api_key: str = Field(default="", validation_alias="GROQ_API_KEY")
     tavily_api_key: str = Field(default="", validation_alias="TAVILY_API_KEY")
+    openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
+    anthropic_api_key: str = Field(default="", validation_alias="ANTHROPIC_API_KEY")
+
+    # --- RAGAS judge ---
+    # The judge must not be the generation model: grading a model's own output
+    # makes faithfulness self-assessed and inflates the score. The default
+    # judge is served by Groq but is a different model family from the
+    # Llama generator. Provider is one of "openai", "anthropic", or "groq".
+    ragas_judge_provider: str = Field(default="groq", validation_alias="RAGAS_JUDGE_PROVIDER")
+    ragas_judge_model: str = Field(
+        default="openai/gpt-oss-120b", validation_alias="RAGAS_JUDGE_MODEL"
+    )
 
     # --- Langfuse observability ---
     langfuse_public_key: str = Field(default="", validation_alias="LANGFUSE_PUBLIC_KEY")
