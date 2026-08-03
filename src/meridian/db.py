@@ -5,10 +5,9 @@ metadata and per-paper ingestion status so that pipeline re-runs are
 idempotent. The ``Paper`` row for an arxiv_id is upserted as the paper moves
 through the fetch, parse, and index stages.
 
-This module is not enumerated in the CLAUDE.md directory structure; it is
-introduced because the corpus specification mandates a PostgreSQL metadata
-store and the session factory is shared across ingestion tasks. See
-DECISIONS.md.
+This module is not part of the originally planned module layout; it exists
+because the corpus specification mandates a PostgreSQL metadata store and the
+session factory is shared across ingestion tasks.
 """
 
 from datetime import datetime

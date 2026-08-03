@@ -10,7 +10,7 @@ readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11,<3.12"
 # Runtime dependencies are pinned in requirements.txt to keep a single source
-# of truth for reproducible installs (see Common Commands in CLAUDE.md).
+# of truth for reproducible installs (see Quick start in README.md).
 dependencies = []
 
 [project.optional-dependencies]
