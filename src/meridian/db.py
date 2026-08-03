@@ -26,6 +26,10 @@ STATUS_FETCHED = "fetched"
 STATUS_PARSED = "parsed"
 STATUS_INDEXED = "indexed"
 STATUS_FAILED = "failed"
+# Terminal and distinct from "failed": arXiv serves no PDF for a withdrawn
+# version, so the paper is excluded by design rather than by a fault that a
+# re-run could clear.
+STATUS_WITHDRAWN = "withdrawn"
 
 
 class Base(DeclarativeBase):

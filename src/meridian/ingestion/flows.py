@@ -14,11 +14,17 @@ from meridian.db import (
     STATUS_FETCHED,
     STATUS_INDEXED,
     STATUS_PENDING,
+    STATUS_WITHDRAWN,
     Paper,
     get_session_factory,
     init_db,
 )
-from meridian.ingestion.arxiv_client import PaperMetadata, download_pdf, fetch_paper_metadata
+from meridian.ingestion.arxiv_client import (
+    PaperMetadata,
+    PdfUnavailableError,
+    download_pdf,
+    fetch_paper_metadata,
+)
 from meridian.ingestion.chunker import chunk_text
 from meridian.ingestion.indexer import ensure_collection, index_chunks
 from meridian.ingestion.pdf_parser import parse_pdf
@@ -49,21 +55,59 @@ def task_persist_metadata(metadata_list: list[PaperMetadata]) -> int:
                         abstract=metadata.abstract,
                         categories=metadata.categories,
                         published=metadata.published,
-                        ingestion_status=STATUS_PENDING,
+                        # Withdrawn papers are recorded rather than dropped, so
+                        # a corpus short of its target is explainable from the
+                        # metadata store.
+                        ingestion_status=(
+                            STATUS_WITHDRAWN if metadata.o_is_withdrawn else STATUS_PENDING
+                        ),
                     )
                 )
         session.commit()
     return len(metadata_list)
 
 
-@task(retries=2, retry_delay_seconds=5)
+def is_retryable_download_failure(task, task_run, state) -> bool:
+    """Return whether a failed download attempt is worth retrying.
+
+    Prefect retries every exception by default. A
+    :class:`~meridian.ingestion.arxiv_client.PdfUnavailableError` is permanent,
+    so retrying it only delays the flow and produces three identical 404s.
+
+    Parameters
+    ----------
+    task : prefect.Task
+        The task being considered for retry. Unused.
+    task_run : prefect.client.schemas.objects.TaskRun
+        The failed task run. Unused.
+    state : prefect.states.State
+        The failure state carrying the raised exception.
+
+    Returns
+    -------
+    bool
+        False when the failure is a permanent PDF unavailability.
+    """
+    try:
+        state.result(raise_on_failure=True)
+    except PdfUnavailableError:
+        return False
+    except Exception:
+        return True
+    return True
+
+
+@task(retries=2, retry_delay_seconds=5, retry_condition_fn=is_retryable_download_failure)
 def task_download_and_record(metadata: PaperMetadata) -> str:
     """Download a paper PDF and record the path and fetched status.
 
     Raises
     ------
+    PdfUnavailableError
+        If arXiv serves no PDF for the paper. Not retried.
     httpx.HTTPError
-        If the download fails after retries; the flow records the failure.
+        If a transient download failure persists after retries; the flow
+        records the failure.
     """
     pdf_path = download_pdf(metadata)
     session_factory = get_session_factory()
@@ -112,14 +156,19 @@ def task_parse_and_index(arxiv_id: str) -> int:
     return indexed_count
 
 
-def _mark_failed(arxiv_id: str) -> None:
-    """Record a failed ingestion status for a paper."""
+def _mark_status(arxiv_id: str, status: str) -> None:
+    """Record a terminal ingestion status for a paper."""
     session_factory = get_session_factory()
     with session_factory() as session:
         paper = session.get(Paper, arxiv_id)
         if paper is not None:
-            paper.ingestion_status = STATUS_FAILED
+            paper.ingestion_status = status
             session.commit()
+
+
+def _mark_failed(arxiv_id: str) -> None:
+    """Record a failed ingestion status for a paper."""
+    _mark_status(arxiv_id, STATUS_FAILED)
 
 
 @flow(name="fetch-papers")
@@ -137,14 +186,32 @@ def fetch_papers_flow(max_papers: int = 200) -> int:
     task_persist_metadata(metadata_list)
 
     downloaded_count = 0
+    withdrawn_count = 0
     for metadata in metadata_list:
+        # Skipped before the task runs, so a withdrawn version costs no request
+        # and no task run at all.
+        if metadata.o_is_withdrawn:
+            logger.info(
+                f"Skipping {metadata.arxiv_id}: withdrawn version, no PDF is served "
+                f"({metadata.comment})"
+            )
+            _mark_status(metadata.arxiv_id, STATUS_WITHDRAWN)
+            withdrawn_count += 1
+            continue
         try:
             task_download_and_record(metadata)
             downloaded_count += 1
+        except PdfUnavailableError as exc:
+            logger.warning(f"No PDF available for {metadata.arxiv_id}: {exc}")
+            _mark_status(metadata.arxiv_id, STATUS_WITHDRAWN)
+            withdrawn_count += 1
         except httpx.HTTPError as exc:
             logger.warning(f"Download failed for {metadata.arxiv_id}: {exc}")
             _mark_failed(metadata.arxiv_id)
-    logger.info(f"Downloaded {downloaded_count} of {len(metadata_list)} papers")
+    logger.info(
+        f"Downloaded {downloaded_count} of {len(metadata_list)} papers "
+        f"({withdrawn_count} skipped as withdrawn or without an available PDF)"
+    )
     return downloaded_count
 
 
@@ -164,9 +231,7 @@ def parse_and_index_flow() -> int:
     with session_factory() as session:
         arxiv_id_list = [
             paper.arxiv_id
-            for paper in session.query(Paper)
-            .filter(Paper.ingestion_status == STATUS_FETCHED)
-            .all()
+            for paper in session.query(Paper).filter(Paper.ingestion_status == STATUS_FETCHED).all()
         ]
 
     total_chunks = 0
