@@ -124,10 +124,29 @@ def run_query(query: str, thread_id: str = "default", session_id: str | None = N
         "configurable": {"thread_id": thread_id},
         "recursion_limit": 50,
     }
+    # Every field derived from a previous turn is cleared explicitly. Reusing a
+    # ``thread_id`` resumes that thread's checkpointed channel values, so any
+    # field a node does not write on every run would otherwise carry forward
+    # into this query. Three carried forward with visible consequences:
+    # ``rewritten_query`` (``_active_query`` would retrieve for the previous
+    # question), and ``source`` together with ``web_search_result`` (once a
+    # thread fell back to the web, ``generate`` re-read its own ``source`` and
+    # kept serving the stale web context in place of freshly retrieved
+    # documents). ``iteration_count`` resets through the ``add_or_reset``
+    # reducer, for which zero means reset rather than add nothing.
     initial_state = {
         "query": query,
         "session_id": session_id,
         "conversation_history": get_session_context(session_id),
+        "rewritten_query": "",
+        "query_type": "",
+        "retrieved_docs": [],
+        "graded_docs": [],
+        "generation": "",
+        "hallucination_score": "",
+        "answer_score": "",
+        "web_search_result": "",
+        "source": "",
         "iteration_count": 0,
     }
     final_state = get_graph().invoke(initial_state, config=config_dict)
