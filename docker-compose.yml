@@ -6,6 +6,13 @@
 services:
   postgres:
     image: postgres:15
+    ports:
+      # Loopback-bound, as with qdrant and api. Without a published port the
+      # host-side entrypoints (scripts/ingest.py, scripts/evaluate.py, a local
+      # uvicorn) cannot reach the database: their DATABASE_URL points at
+      # localhost:5432. The containerised api is unaffected either way, since
+      # compose overrides its DATABASE_URL to the postgres network hostname.
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: meridian
       POSTGRES_PASSWORD: meridian
