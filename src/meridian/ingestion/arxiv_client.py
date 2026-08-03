@@ -102,10 +102,15 @@ def fetch_paper_metadata(max_results: int) -> list[PaperMetadata]:
     settings = get_settings()
     delay_seconds = 1.0 / settings.arxiv_max_requests_per_second
     client = arxiv.Client(page_size=100, delay_seconds=delay_seconds, num_retries=3)
+    # Relevance ordering, not date ordering. The query caps submittedDate at the
+    # end of the configured range, so sorting by date descending returns
+    # whatever was submitted on the final day of the window regardless of
+    # subject. The corpus is defined by topic, so relevance is the correct
+    # ordering and the date clause remains the boundary.
     search = arxiv.Search(
         query=build_search_query(settings),
         max_results=max_results,
-        sort_by=arxiv.SortCriterion.SubmittedDate,
+        sort_by=arxiv.SortCriterion.Relevance,
         sort_order=arxiv.SortOrder.Descending,
     )
 
