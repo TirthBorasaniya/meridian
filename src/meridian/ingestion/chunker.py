@@ -9,14 +9,21 @@ a concept split across a boundary remains retrievable from either chunk.
 
 from functools import lru_cache
 
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter, TextSplitter
 
 from meridian.config import get_settings
 
 
 @lru_cache(maxsize=1)
-def _get_splitter() -> RecursiveCharacterTextSplitter:
-    """Return a cached token-aware recursive character splitter."""
+def _get_splitter() -> TextSplitter:
+    """Return a cached token-aware recursive character splitter.
+
+    Annotated with the ``TextSplitter`` base rather than the concrete subclass:
+    ``from_huggingface_tokenizer`` is inherited and declared to return the base
+    type, so pinning the subclass here fails type checking on the
+    langchain-text-splitters versions that resolve a fresh install. Only
+    ``split_text`` is called, which the base type provides.
+    """
     # Imported lazily so importing this module does not load the transformers
     # tokenizer stack until chunking is actually performed.
     from transformers import AutoTokenizer
