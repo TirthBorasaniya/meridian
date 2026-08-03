@@ -6,6 +6,7 @@ access is throttled to respect the arXiv API terms of service.
 """
 
 import os
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,6 +17,36 @@ import arxiv
 import httpx
 
 from meridian.config import Settings, get_settings
+
+# arXiv serves no PDF for a withdrawn version, so the versioned PDF URL taken
+# from the API returns a permanent 404. Authors state the withdrawal in the
+# submission comment, which arrives with the metadata, so the condition is
+# detectable before any download is attempted.
+_WITHDRAWN_PATTERN = re.compile(r"withdraw", re.IGNORECASE)
+
+
+class PdfUnavailableError(Exception):
+    """Raised when arXiv serves no PDF for a paper's resolved URL.
+
+    Signals a permanent condition, not a transient one. A withdrawn or removed
+    version returns 404 on every attempt, so callers must not retry.
+    """
+
+
+def detect_withdrawn(comment: str) -> bool:
+    """Return whether a submission comment states the paper was withdrawn.
+
+    Parameters
+    ----------
+    comment : str
+        The arXiv submission comment, which may be empty.
+
+    Returns
+    -------
+    bool
+        True when the comment mentions withdrawal.
+    """
+    return bool(comment) and bool(_WITHDRAWN_PATTERN.search(comment))
 
 
 @dataclass
@@ -29,6 +60,8 @@ class PaperMetadata:
     categories: str
     published: datetime
     pdf_url: str
+    comment: str = ""
+    o_is_withdrawn: bool = False
 
 
 class RateLimiter:
@@ -119,6 +152,7 @@ def fetch_paper_metadata(max_results: int) -> list[PaperMetadata]:
         published_year = result.published.year
         if not (settings.arxiv_start_year <= published_year <= settings.arxiv_end_year):
             continue
+        comment = (result.comment or "").strip().replace("\n", " ")
         metadata_list.append(
             PaperMetadata(
                 arxiv_id=result.get_short_id(),
@@ -128,6 +162,8 @@ def fetch_paper_metadata(max_results: int) -> list[PaperMetadata]:
                 categories=" ".join(result.categories),
                 published=result.published.replace(tzinfo=None),
                 pdf_url=result.pdf_url,
+                comment=comment,
+                o_is_withdrawn=detect_withdrawn(comment),
             )
         )
     return metadata_list
@@ -148,6 +184,14 @@ def download_pdf(metadata: PaperMetadata, *, o_overwrite: bool = False) -> str:
     -------
     str
         Local filesystem path to the downloaded PDF.
+
+    Raises
+    ------
+    PdfUnavailableError
+        If the paper is a withdrawn version, or arXiv returns 404 for its PDF
+        URL. Both are permanent; the caller must not retry.
+    httpx.HTTPError
+        For transient transport or server-side failures, which are retryable.
     """
     settings = get_settings()
     os.makedirs(settings.corpus_raw_dir, exist_ok=True)
@@ -157,9 +201,21 @@ def download_pdf(metadata: PaperMetadata, *, o_overwrite: bool = False) -> str:
     if os.path.exists(dest_path) and not o_overwrite:
         return dest_path
 
+    if metadata.o_is_withdrawn:
+        raise PdfUnavailableError(
+            f"{metadata.arxiv_id} is a withdrawn version and has no PDF: {metadata.comment}"
+        )
+
     get_rate_limiter().wait()
     with httpx.Client(follow_redirects=True, timeout=60.0) as http_client:
         response = http_client.get(metadata.pdf_url)
+        # A 404 means arXiv serves no PDF at this URL and never will. Raising a
+        # distinct permanent error keeps the retry budget for real transport
+        # failures instead of spending it on a certain outcome.
+        if response.status_code == 404:
+            raise PdfUnavailableError(
+                f"arXiv returned 404 for {metadata.pdf_url}; no PDF is available"
+            )
         response.raise_for_status()
         pdf_bytes = response.content
 
