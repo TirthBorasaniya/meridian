@@ -11,7 +11,7 @@ PYTHON_VERSION := 3.11.9
 RUN := uv run --frozen
 COMPOSE := docker compose
 
-.PHONY: setup lint format typecheck test test-integration test-e2e up down logs demo \
+.PHONY: setup lint format typecheck test test-integration test-e2e record-e2e up down logs demo \
 	backfill index ingest rebuild rollback scheduler retrieval-set review-set references \
 	eval eval-retrieval eval-answers eval-serving eval-ingest eval-embedder eval-demo \
 	embedder-pairs embedder-negatives embedder-train embedder-push train-embedder \
@@ -45,6 +45,10 @@ test-integration:
 
 test-e2e:
 	$(RUN) pytest -m e2e -o addopts=""
+
+# records tests/fixtures/e2e_llm_cache.sqlite with real Groq calls
+record-e2e:
+	MERIDIAN_RECORD_E2E=1 $(RUN) pytest -m e2e -o addopts=""
 
 # ============= Stack =============
 

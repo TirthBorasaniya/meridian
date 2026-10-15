@@ -342,6 +342,75 @@ class GateConfig(VersionedConfig):
     answer_set_path: str
 
 
+# ============= Agent =============
+
+
+class GradingConfig(BaseModel):
+    """Score-band grading."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    o_score_band: bool
+    accept_score: float = Field(ge=0.0, le=1.0)
+    reject_score: float = Field(ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def _check_band(self) -> "GradingConfig":
+        if self.reject_score > self.accept_score:
+            raise ValueError("reject_score must not exceed accept_score")
+        return self
+
+
+class DecideConfig(BaseModel):
+    """Retry and fallback policy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    min_supporting_chunks: int = Field(ge=1)
+    max_retries: int = Field(ge=0)
+    o_web_fallback: bool
+
+
+class VerifyConfig(BaseModel):
+    """Citation verification policy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    sample_rate: float = Field(ge=0.0, le=1.0)
+    sample_seed: int
+    max_regenerations: int = Field(ge=0)
+    regenerate_above_unsupported_fraction: float = Field(ge=0.0, le=1.0)
+
+
+class WebConfig(BaseModel):
+    """Web search fallback."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    max_results: int = Field(gt=0)
+
+
+class ConversationConfig(BaseModel):
+    """Conversation history passed to the router and rewriter."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    history_messages: int = Field(ge=0)
+
+
+class AgentConfig(VersionedConfig):
+    """configs/agent.yaml."""
+
+    retrieval_mode: Literal["dense", "sparse", "hybrid", "hybrid_rerank"]
+    grading: GradingConfig
+    decide: DecideConfig
+    verify: VerifyConfig
+    web: WebConfig
+    conversation: ConversationConfig
+    excerpt_sentences: int = Field(gt=0)
+    checkpoint_path: str
+
+
 # ============= Scheduler =============
 
 
@@ -382,6 +451,12 @@ def get_gate_config() -> GateConfig:
 
 
 @cache
+def get_agent_config() -> AgentConfig:
+    """Return configs/agent.yaml."""
+    return load_config(AgentConfig, config_dir() / "agent.yaml")
+
+
+@cache
 def get_scheduler_config() -> SchedulerConfig:
     """Return configs/scheduler.yaml."""
     return load_config(SchedulerConfig, config_dir() / "scheduler.yaml")
@@ -395,5 +470,6 @@ def clear_config_caches() -> None:
         get_models_config,
         get_gate_config,
         get_scheduler_config,
+        get_agent_config,
     ):
         accessor.cache_clear()

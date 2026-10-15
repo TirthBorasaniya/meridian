@@ -1,0 +1,27 @@
+# Agent graph behavior (SPEC S4). Serving profiles override verify.sample_rate and
+# decide.o_web_fallback.
+version: 1
+
+retrieval_mode: "hybrid_rerank"
+grading:
+  # reranker sigmoid scores at or above accept_score are kept, below reject_score dropped;
+  # only the band in between goes to the LLM grader
+  o_score_band: true
+  accept_score: 0.7
+  reject_score: 0.2
+decide:
+  min_supporting_chunks: 2
+  max_retries: 2
+  o_web_fallback: true
+verify:
+  sample_rate: 1.0
+  sample_seed: 7
+  max_regenerations: 1
+  # regenerate once when more than this share of sentences is unsupported, else remove them
+  regenerate_above_unsupported_fraction: 0.5
+web:
+  max_results: 4
+conversation:
+  history_messages: 6
+excerpt_sentences: 2
+checkpoint_path: "data/checkpoints/agent.sqlite"

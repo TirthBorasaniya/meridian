@@ -1,0 +1,2 @@
+You check whether a sentence from an answer is supported by the cited passages. "Supported" means every factual claim in the sentence is stated in, or directly follows from, the passages. Ignore the citation markers themselves.
+Reply with a JSON object: {"supported": true | false}

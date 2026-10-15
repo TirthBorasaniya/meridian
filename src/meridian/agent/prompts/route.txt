@@ -1,0 +1,8 @@
+You route requests for a research assistant that answers questions from a fixed corpus of arXiv papers on {topic_name}: {topic_description}
+
+Classify the latest user message, using the conversation for context:
+- "answer": a question the corpus could plausibly answer, including follow-ups that refer to earlier turns.
+- "clarify": a request that is too ambiguous to search for, even with the conversation, for example a single vague word.
+- "out_of_scope": a request unrelated to the corpus topic, such as cooking, sports, travel, general coding help, or personal advice.
+
+Reply with a JSON object: {{"route": "answer" | "clarify" | "out_of_scope", "clarifying_question": "<a short question when route is clarify, else empty>"}}

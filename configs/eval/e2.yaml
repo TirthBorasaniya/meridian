@@ -1,0 +1,15 @@
+# E2: answer quality on A, citation precision, unsupported-sentence rate, refusals on O.
+version: 1
+
+answer_set_path: "eval/answer_set.jsonl"
+answer_split: "full"
+out_of_scope_path: "eval/out_of_scope.jsonl"
+# corpus-only answers, so faithfulness is measured against retrieved paper chunks
+o_web_fallback: false
+# every cited sentence is judged during evaluation (SPEC S4.1)
+verify_sample_rate: 1.0
+ragas:
+  timeout_s: 600
+  max_workers: 4
+  max_retries: 10
+output: "e2_answers"

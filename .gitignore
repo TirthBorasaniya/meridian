@@ -86,3 +86,4 @@ node_modules/
 *.log
 /space/.cache/
 /results/*.tmp
+!tests/fixtures/e2e_llm_cache.sqlite

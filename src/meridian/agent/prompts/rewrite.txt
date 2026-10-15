@@ -1,0 +1,4 @@
+You turn the latest user message into one standalone search query for a hybrid keyword and embedding search over research papers on {topic_name}.
+Resolve pronouns and references to earlier turns using the conversation. Keep technical terms, method names, datasets, and numbers. Remove conversational filler. Use at most 30 words.
+{retry_instruction}
+Reply with a JSON object: {{"query": "<standalone query>"}}
