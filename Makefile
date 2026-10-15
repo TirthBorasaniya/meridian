@@ -12,7 +12,7 @@ RUN := uv run --frozen
 COMPOSE := docker compose
 
 .PHONY: setup lint format typecheck test test-integration test-e2e record-e2e up down logs demo \
-	backfill index ingest rebuild rollback scheduler retrieval-set review-set references \
+	backfill index ingest rebuild rollback scheduler retrieval-set review-set prepare-review references \
 	eval eval-retrieval eval-answers eval-serving eval-ingest eval-embedder eval-demo \
 	embedder-pairs embedder-negatives embedder-train embedder-push train-embedder \
 	release restore deploy-space benchmark loadtest results results-check clean
@@ -93,6 +93,9 @@ retrieval-set:
 
 review-set:
 	$(RUN) python scripts/review_retrieval_set.py
+
+prepare-review:
+	$(RUN) python scripts/prepare_review.py
 
 references:
 	$(RUN) python scripts/build_answer_references.py

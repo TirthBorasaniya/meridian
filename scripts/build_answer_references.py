@@ -26,8 +26,13 @@ SYSTEM_PROMPT = (
 TOP_K = 6
 
 
-def draft_reference(llm, retriever, question: str) -> tuple[str, list[str]]:
-    """Return a drafted reference and the arXiv ids of the passages it used."""
+def draft_reference(llm, retriever, question: str) -> tuple[str, list[str], list[dict]]:
+    """
+    Return a drafted reference, the arXiv ids it used, and the spans of the passages it used.
+
+    Spans (`chunk_id`, `arxiv_id`, `version`, `start`, `end`) locate the passages in the parsed
+    papers without storing chunk text in the committed answer set.
+    """
     result = retriever.search(question, mode="hybrid_rerank", k=TOP_K)
     passages = "\n\n".join(
         f"[{index}] {chunk.payload.get('title', '')}\n{chunk.text}"
@@ -40,12 +45,23 @@ def draft_reference(llm, retriever, question: str) -> tuple[str, list[str]]:
             {"role": "user", "content": f"Question: {question}\n\nPassages:\n{passages}"},
         ],
     )
-    used_list = [
-        result.chunk_list[int(number) - 1].payload["arxiv_id"]
+    used_chunk_list = [
+        result.chunk_list[int(number) - 1]
         for number in reply.get("used_passages", [])
         if str(number).isdigit() and 1 <= int(number) <= len(result.chunk_list)
     ]
-    return str(reply.get("answer", "")).strip(), sorted(set(used_list))
+    span_list = [
+        {
+            "chunk_id": chunk.chunk_id,
+            "arxiv_id": chunk.payload["arxiv_id"],
+            "version": int(chunk.payload["version"]),
+            "start": int(chunk.payload["char_start"]),
+            "end": int(chunk.payload["char_end"]),
+        }
+        for chunk in used_chunk_list
+    ]
+    arxiv_id_list = sorted({chunk.payload["arxiv_id"] for chunk in used_chunk_list})
+    return str(reply.get("answer", "")).strip(), arxiv_id_list, span_list
 
 
 def main() -> None:
@@ -61,12 +77,13 @@ def main() -> None:
     for record in record_list:
         if record.get("reference"):
             continue
-        answer, arxiv_id_list = draft_reference(llm, retriever, record["question"])
+        answer, arxiv_id_list, span_list = draft_reference(llm, retriever, record["question"])
         if not answer:
             empty += 1
             continue
         record["reference"] = answer
         record["reference_arxiv_ids"] = arxiv_id_list
+        record["reference_spans"] = span_list
         record["reference_source"] = f"llm_draft:{writer_model}"
         record["reference_reviewed"] = False
         filled += 1
