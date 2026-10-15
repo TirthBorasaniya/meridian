@@ -135,6 +135,19 @@ class Agent:
         snapshot = self.graph.get_state(self._config(session_id))
         return len((snapshot.values or {}).get("messages", [])) if snapshot else 0
 
+    def record_turn(self, session_id: str, question: str, answer: str) -> None:
+        """Append a turn served from a cache to the session, so follow-ups keep their context."""
+        self.graph.update_state(
+            self._config(session_id),
+            {
+                "messages": [
+                    {"role": "user", "content": question},
+                    {"role": "assistant", "content": answer},
+                ]
+            },
+            as_node="finalize",
+        )
+
     def ask(
         self,
         question: str,

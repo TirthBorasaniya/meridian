@@ -1,0 +1,10 @@
+# Load test of /v1/search against a running API (retrieval only, no LLM cost).
+version: 1
+
+base_url: "http://127.0.0.1:8000"
+concurrency: 8
+requests: 400
+k: 6
+mode: "hybrid_rerank"
+questions_path: "eval/answer_set.jsonl"
+output: "loadtest"

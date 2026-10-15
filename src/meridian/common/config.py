@@ -411,6 +411,44 @@ class AgentConfig(VersionedConfig):
     checkpoint_path: str
 
 
+# ============= Serving =============
+
+
+class CacheConfig(BaseModel):
+    """Serving caches."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    o_answer_cache: bool
+    answer_ttl_seconds: int = Field(gt=0)
+    embedding_ttl_seconds: int = Field(gt=0)
+    o_semantic_cache: bool
+    semantic_distance_threshold: float = Field(gt=0.0, lt=2.0)
+    semantic_ttl_seconds: int = Field(gt=0)
+
+
+class RateLimitConfig(BaseModel):
+    """Per-IP request limits."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    o_enabled: bool
+    per_minute: int = Field(gt=0)
+    per_day: int = Field(gt=0)
+
+
+class ServingConfig(VersionedConfig):
+    """configs/serving.yaml and configs/demo.yaml."""
+
+    verify_sample_rate: float = Field(ge=0.0, le=1.0)
+    o_web_fallback: bool
+    max_question_chars: int = Field(gt=0)
+    cache: CacheConfig
+    rate_limit: RateLimitConfig
+    o_expose_chunk_text: bool
+    index_info_path: str
+
+
 # ============= Scheduler =============
 
 
@@ -457,6 +495,14 @@ def get_agent_config() -> AgentConfig:
 
 
 @cache
+def get_serving_config(profile: str = "serving") -> ServingConfig:
+    """Return configs/<profile>.yaml for a serving profile (`serving` or `demo`)."""
+    if profile not in {"serving", "demo"}:
+        raise ValueError(f"unknown serving profile {profile!r}")
+    return load_config(ServingConfig, config_dir() / f"{profile}.yaml")
+
+
+@cache
 def get_scheduler_config() -> SchedulerConfig:
     """Return configs/scheduler.yaml."""
     return load_config(SchedulerConfig, config_dir() / "scheduler.yaml")
@@ -471,5 +517,6 @@ def clear_config_caches() -> None:
         get_gate_config,
         get_scheduler_config,
         get_agent_config,
+        get_serving_config,
     ):
         accessor.cache_clear()

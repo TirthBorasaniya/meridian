@@ -1,0 +1,30 @@
+{"cached_question": "What is chain-of-thought prompting and how does it differ from standard prompting?", "pid": "p001", "probe": "How does chain of thought prompting differ from ordinary prompting?", "same_intent": true}
+{"cached_question": "How does self-consistency improve over greedy chain-of-thought decoding?", "pid": "p002", "probe": "Why does self-consistency beat greedy decoding of chain-of-thought?", "same_intent": true}
+{"cached_question": "What is zero-shot chain-of-thought prompting and what trigger phrase enables it?", "pid": "p003", "probe": "Which trigger phrase enables zero-shot chain of thought?", "same_intent": true}
+{"cached_question": "What reasoning capabilities does the GSM8K benchmark measure?", "pid": "p004", "probe": "Which reasoning skills does GSM8K test?", "same_intent": true}
+{"cached_question": "What is BIG-Bench Hard and why was it constructed?", "pid": "p005", "probe": "Why was BIG-Bench Hard built and what is it?", "same_intent": true}
+{"cached_question": "How does using an LLM as a judge introduce bias into evaluation?", "pid": "p006", "probe": "In what ways are LLM judges biased?", "same_intent": true}
+{"cached_question": "What is position bias in pairwise LLM-as-judge evaluation?", "pid": "p007", "probe": "What does position bias mean for pairwise LLM judges?", "same_intent": true}
+{"cached_question": "How is expected calibration error computed?", "pid": "p008", "probe": "How do you calculate expected calibration error?", "same_intent": true}
+{"cached_question": "What does it mean for a language model to be well-calibrated?", "pid": "p009", "probe": "When is a language model considered well calibrated?", "same_intent": true}
+{"cached_question": "What is the reversal curse in language model reasoning?", "pid": "p010", "probe": "Explain the reversal curse in LLMs.", "same_intent": true}
+{"cached_question": "What is sycophancy in language model responses?", "pid": "p011", "probe": "What is meant by sycophancy in LLM answers?", "same_intent": true}
+{"cached_question": "How does the ReAct framework interleave reasoning and acting?", "pid": "p012", "probe": "How does ReAct combine reasoning steps with actions?", "same_intent": true}
+{"cached_question": "What is Reflexion and how does it use self-generated feedback?", "pid": "p013", "probe": "How does Reflexion use feedback it generates itself?", "same_intent": true}
+{"cached_question": "How does reciprocal rank fusion combine multiple retrieval results?", "pid": "p014", "probe": "How are ranked lists merged by reciprocal rank fusion?", "same_intent": true}
+{"cached_question": "What is the difference between a cross-encoder and a bi-encoder in retrieval?", "pid": "p015", "probe": "Cross-encoder versus bi-encoder: what is the difference in retrieval?", "same_intent": true}
+{"cached_question": "How does self-consistency improve over greedy chain-of-thought decoding?", "pid": "p016", "probe": "How does self-consistency relate to confidence estimation?", "same_intent": false}
+{"cached_question": "What reasoning capabilities does the GSM8K benchmark measure?", "pid": "p017", "probe": "How does the MATH dataset differ from GSM8K in difficulty?", "same_intent": false}
+{"cached_question": "What is BIG-Bench Hard and why was it constructed?", "pid": "p018", "probe": "How are tasks in BIG-Bench selected and categorized?", "same_intent": false}
+{"cached_question": "How does using an LLM as a judge introduce bias into evaluation?", "pid": "p019", "probe": "How can self-enhancement bias affect a model grading its own outputs?", "same_intent": false}
+{"cached_question": "What is position bias in pairwise LLM-as-judge evaluation?", "pid": "p020", "probe": "How can evaluation be made robust to the ordering of answer options?", "same_intent": false}
+{"cached_question": "How is expected calibration error computed?", "pid": "p021", "probe": "How does temperature scaling improve calibration?", "same_intent": false}
+{"cached_question": "What does it mean for a language model to be well-calibrated?", "pid": "p022", "probe": "Why might a model be accurate but poorly calibrated?", "same_intent": false}
+{"cached_question": "What is chain-of-thought prompting and how does it differ from standard prompting?", "pid": "p023", "probe": "What is the difference between chain-of-thought and tree-of-thoughts prompting?", "same_intent": false}
+{"cached_question": "What is zero-shot chain-of-thought prompting and what trigger phrase enables it?", "pid": "p024", "probe": "How does few-shot exemplar selection affect chain-of-thought performance?", "same_intent": false}
+{"cached_question": "How does the ReAct framework interleave reasoning and acting?", "pid": "p025", "probe": "What is Reflexion and how does it use self-generated feedback?", "same_intent": false}
+{"cached_question": "How does reciprocal rank fusion combine multiple retrieval results?", "pid": "p026", "probe": "What is the difference between dense and sparse retrieval?", "same_intent": false}
+{"cached_question": "What is the difference between a cross-encoder and a bi-encoder in retrieval?", "pid": "p027", "probe": "What is the role of a reranker in a retrieval pipeline?", "same_intent": false}
+{"cached_question": "What is sycophancy in language model responses?", "pid": "p028", "probe": "How does prompt injection compromise reasoning reliability?", "same_intent": false}
+{"cached_question": "What is the reversal curse in language model reasoning?", "pid": "p029", "probe": "How do models fail on compositional generalization tasks?", "same_intent": false}
+{"cached_question": "What is unfaithful reasoning and how is it measured?", "pid": "p030", "probe": "How can chain-of-thought produce a correct answer with incorrect reasoning?", "same_intent": false}

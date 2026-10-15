@@ -1,0 +1,21 @@
+# Serving profile for the public demo Space (MERIDIAN_SERVING_PROFILE=demo): web fallback off,
+# per-IP limits on, answers cached by index version (SPEC S5.2).
+version: 1
+
+verify_sample_rate: 0.3
+o_web_fallback: false
+max_question_chars: 600
+cache:
+  o_answer_cache: true
+  answer_ttl_seconds: 604800
+  embedding_ttl_seconds: 2592000
+  o_semantic_cache: false
+  semantic_distance_threshold: 0.1
+  semantic_ttl_seconds: 604800
+rate_limit:
+  o_enabled: true
+  per_minute: 10
+  per_day: 100
+# full chunk text in /v1/search responses; the public demo shows excerpts only
+o_expose_chunk_text: false
+index_info_path: "data/index_info.json"

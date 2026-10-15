@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     service_name: str = Field(default="meridian", alias="MERIDIAN_SERVICE")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     demo_url: str = Field(default="", alias="MERIDIAN_DEMO_URL")
+    # proxies whose X-Forwarded-For is trusted; widening this lets clients spoof their address
+    forwarded_allow_ips: str = Field(default="127.0.0.1", alias="FORWARDED_ALLOW_IPS")
 
 
 @lru_cache(maxsize=1)

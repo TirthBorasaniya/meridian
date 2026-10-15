@@ -1,0 +1,12 @@
+# E3: end-to-end latency, tokens and cost per answer, LLM calls with and without score-band
+# grading, cache hit rates, and the semantic cache's wrong-hit rate (SPEC S6.2).
+version: 1
+
+answer_set_path: "eval/answer_set.jsonl"
+answer_split: "fast"
+cache_probes_path: "eval/cache_probes.jsonl"
+profile: "serving"
+# corpus-only, so runs with and without score bands differ only in grading
+o_web_fallback: false
+semantic_distance_threshold: 0.1
+output: "e3_serving"
