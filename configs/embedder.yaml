@@ -1,0 +1,35 @@
+# Domain-adapted embedding model (SPEC S3.8).
+version: 1
+
+base_model: "BAAI/bge-small-en-v1.5"
+query_prefix: "Represent this sentence for searching relevant passages: "
+n_pairs: 10000
+n_dev_pairs: 500
+queries_per_chunk: 3
+min_chunk_tokens: 80
+seed: 17
+# a chunk pool below this size is topped up with relevance-ranked papers beyond the corpus
+min_pool_chunks: 4000
+extra_pool_papers: 300
+hard_negatives:
+  range_min: 10
+  range_max: 50
+  relative_margin: 0.05
+  num_candidates: 5
+  batch_size: 64
+training:
+  epochs: 1
+  learning_rate: 2.0e-5
+  batch_size_gpu: 64
+  batch_size_cpu: 32
+  warmup_ratio: 0.1
+  eval_steps: 50
+  early_stopping_patience: 3
+paths:
+  work_dir: "data/embedder"
+  pool_dir: "data/train_pool"
+  output_dir: "models/meridian-embedder"
+hub:
+  # model id for rebuilds and CI; set to the Hugging Face repo the model is pushed to
+  repo_id: "TirthBorasaniya/meridian-bge-small-arxiv"
+  private: false

@@ -96,6 +96,7 @@ class RebuildReport:
     live_after: str | None
     pruned_list: list[str] = field(default_factory=list)
     baseline: dict | None = None
+    dense_model: str = ""
 
     def to_dict(self) -> dict:
         """Serialize."""
@@ -206,6 +207,7 @@ def run_rebuild(
         o_promoted=o_promoted and not o_dry_run,
         reason_list=reason_list + (["dry run"] if o_dry_run else []),
         live_after=live,
+        dense_model=candidate_config.dense.model,
     )
     if not report.o_promoted:
         logger.warning(

@@ -69,3 +69,22 @@ Alternatives: re-run the query (kept as `--source query`, not the default); star
 at the ceiling (rejected: it would pull almost two years of papers into one run).
 Consequences: papers submitted between the query ceiling and the backfill date are not in the
 corpus. The README states this.
+
+## D-005: Training pairs come from non-evaluation papers, topped up beyond the corpus
+Status: accepted (2026-10-14)
+Context: R samples chunks stratified by paper, so most of the 199 corpus papers are referenced
+by R, and SPEC S3.8 forbids any evaluation paper from contributing training text. The
+remaining corpus papers may not yield 10,000 diverse pairs.
+Decision: the training pool is every live chunk of a paper outside the R, A, and O exclusion
+list. When it holds fewer than `min_pool_chunks`, relevance-ranked papers from the recorded
+query beyond the corpus are downloaded, parsed, and chunked into `data/train_pool`, and they
+are never indexed. The `pair_writer` role (`openai/gpt-oss-120b`) writes three queries per
+chunk. The 500-pair dev split holds whole papers. Leakage is checked when pairs are written,
+again before negatives are mined, and again before training; any evaluation paper aborts the
+run. Hard negatives come from `mine_hard_negatives` (ranks 10 to 50, relative margin 0.05),
+and a candidate from the positive's own section is skipped.
+Alternatives: train on all corpus papers (rejected: leaks evaluation papers into training);
+split dev by pair (rejected: dev queries would share papers with training queries).
+Consequences: the adapted model is trained partly on papers that are not in the index. That
+matches the corpus topic and keeps R a true held-out set. The model is promoted only through
+the rebuild gate.

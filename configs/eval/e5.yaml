@@ -1,0 +1,14 @@
+# E5: base versus domain-adapted embedder on R-full, dense only and the full pipeline.
+version: 1
+
+retrieval_set_path: "eval/retrieval_set.jsonl"
+split: "full"
+k: 10
+base_index_config: "configs/index.yaml"
+adapted_index_config: "configs/index_adapted.yaml"
+# collections built for E5 when no existing collection uses the model
+collection_prefix: "meridian_e5_"
+o_drop_after: true
+train_report_path: "data/embedder/train_report.json"
+rebuild_report_dir: "data/rebuilds"
+output: "e5_embedder"

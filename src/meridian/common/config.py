@@ -449,6 +449,72 @@ class ServingConfig(VersionedConfig):
     index_info_path: str
 
 
+# ============= Embedder =============
+
+
+class HardNegativeConfig(BaseModel):
+    """Hard-negative mining window."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    range_min: int = Field(ge=0)
+    range_max: int = Field(gt=0)
+    relative_margin: float = Field(ge=0.0, lt=1.0)
+    num_candidates: int = Field(gt=0)
+    batch_size: int = Field(gt=0)
+
+
+class TrainingConfig(BaseModel):
+    """Fine-tuning hyperparameters."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    epochs: int = Field(gt=0)
+    learning_rate: float = Field(gt=0.0)
+    batch_size_gpu: int = Field(gt=0)
+    batch_size_cpu: int = Field(gt=0)
+    warmup_ratio: float = Field(ge=0.0, lt=1.0)
+    eval_steps: int = Field(gt=0)
+    early_stopping_patience: int = Field(gt=0)
+
+
+class EmbedderPaths(BaseModel):
+    """Embedder working directories."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    work_dir: str
+    pool_dir: str
+    output_dir: str
+
+
+class HubConfig(BaseModel):
+    """Hugging Face Hub release target."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    repo_id: str
+    private: bool
+
+
+class EmbedderConfig(VersionedConfig):
+    """configs/embedder.yaml."""
+
+    base_model: str
+    query_prefix: str
+    n_pairs: int = Field(gt=0)
+    n_dev_pairs: int = Field(gt=0)
+    queries_per_chunk: int = Field(gt=0)
+    min_chunk_tokens: int = Field(ge=1)
+    seed: int
+    min_pool_chunks: int = Field(ge=0)
+    extra_pool_papers: int = Field(ge=0)
+    hard_negatives: HardNegativeConfig
+    training: TrainingConfig
+    paths: EmbedderPaths
+    hub: HubConfig
+
+
 # ============= Scheduler =============
 
 
