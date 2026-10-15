@@ -1,0 +1,76 @@
+{
+ "version": 1,
+ "description": "Five synthetic papers for the index lifecycle integration test; text written for the test, not taken from arXiv.",
+ "papers": [
+  {
+   "arxiv_id": "2490.00001",
+   "title": "Stepwise Prompting for Arithmetic",
+   "sections": [
+    [
+     "1 Introduction",
+     "Chain of thought prompting asks a language model to write intermediate reasoning steps before the final answer. "
+    ],
+    [
+     "2 Results",
+     "On grade school arithmetic word problems, stepwise prompting raises accuracy for large models while small models gain little. "
+    ]
+   ]
+  },
+  {
+   "arxiv_id": "2490.00002",
+   "title": "Confidence and Accuracy",
+   "sections": [
+    [
+     "1 Introduction",
+     "Calibration asks whether stated confidence matches observed accuracy across many predictions. "
+    ],
+    [
+     "2 Method",
+     "Expected calibration error bins predictions by confidence and averages the gap between confidence and accuracy per bin. "
+    ]
+   ]
+  },
+  {
+   "arxiv_id": "2490.00003",
+   "title": "Voting over Reasoning Paths",
+   "sections": [
+    [
+     "1 Introduction",
+     "Self consistency samples several reasoning paths at nonzero temperature and selects the most frequent final answer. "
+    ],
+    [
+     "2 Analysis",
+     "Majority voting over sampled paths is more robust than greedy decoding when individual paths contain errors. "
+    ]
+   ]
+  },
+  {
+   "arxiv_id": "2490.00004",
+   "title": "Judging with Language Models",
+   "sections": [
+    [
+     "1 Introduction",
+     "Using a language model as a judge introduces position bias, verbosity bias, and self preference. "
+    ],
+    [
+     "2 Mitigation",
+     "Swapping answer order and averaging both judgments reduces position bias in pairwise evaluation. "
+    ]
+   ]
+  },
+  {
+   "arxiv_id": "2490.00005",
+   "title": "Retrieval for Grounded Answers",
+   "sections": [
+    [
+     "1 Introduction",
+     "Retrieval augmented generation conditions answers on documents fetched for each question. "
+    ],
+    [
+     "2 Experiments",
+     "Reranking retrieved passages with a cross encoder improves the share of answers supported by evidence. "
+    ]
+   ]
+  }
+ ]
+}

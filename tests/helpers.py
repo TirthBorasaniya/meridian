@@ -130,3 +130,109 @@ def wired_context(tmp_path: Path, arxiv: FakeArxiv, retrieval_set_path: Path) ->
         indexer=indexer,
         search=lambda query: retriever.search(query, mode="hybrid_rerank", k=10),
     )
+
+
+# ============= Index lifecycle fixture =============
+
+LIFECYCLE_FIXTURE = Path(__file__).parent / "fixtures" / "lifecycle_papers.json"
+BODY_REPEAT = 10
+
+
+def lifecycle_papers() -> list[dict]:
+    """Return the five synthetic fixture papers."""
+    import json
+
+    return json.loads(LIFECYCLE_FIXTURE.read_text())["papers"]
+
+
+def fake_indexer_factory(client, collection, index_version, index_config) -> PaperIndexer:
+    """Indexer factory with fake models and a whitespace tokenizer."""
+    return PaperIndexer(
+        client,
+        collection,
+        index_version,
+        index_config,
+        FakeDenseEncoder(),
+        FakeSparseEncoder(),
+        WhitespaceTokenizer(),
+        510,
+    )
+
+
+def fake_search_factory(client):
+    """Search factory with fake models, for rebuild tests."""
+
+    def factory(collection, index_config):
+        retriever = HybridRetriever(
+            client,
+            collection,
+            FakeDenseEncoder(),
+            FakeSparseEncoder(),
+            FakeReranker(),
+            index_config.retrieval,
+        )
+        return lambda query: retriever.search(query, mode="hybrid_rerank", k=10)
+
+    return factory
+
+
+def acquire_fixture_papers(context: IngestContext, paper_list: list[dict]) -> None:
+    """Write fixture PDFs and record them in the manifest as a backfill batch."""
+    from meridian.ingest.parse import parse_and_cache
+    from meridian.ingest.pipeline import KIND_BACKFILL
+
+    manifest = context.manifest
+    manifest.start_batch("bac-fixture", KIND_BACKFILL, "", "", "", 0)
+    for paper in paper_list:
+        meta = paper_meta(paper["arxiv_id"])
+        meta.title = paper["title"]
+        pdf_path = Path(context.corpus_config.paths.pdf_dir) / f"{meta.versioned_id}.pdf"
+        write_pdf(pdf_path, [(heading, body * BODY_REPEAT) for heading, body in paper["sections"]])
+        parsed = parse_and_cache(
+            pdf_path,
+            context.corpus_config.paths.parsed_dir,
+            meta.versioned_id,
+            context.index_config.parser,
+        )
+        manifest.upsert_meta(meta, "parsed")
+        manifest.update_paper(
+            meta.arxiv_id,
+            meta.version,
+            pdf_path=str(pdf_path),
+            status="parsed",
+            parser_version=parsed.parser_version,
+            ingest_batch_id="bac-fixture",
+        )
+    manifest.finish_batch("bac-fixture", "accepted", "2024-11-04T00:00:00Z", {})
+
+
+def write_retrieval_set_for(client, collection: str, path: Path, query_by_paper: dict) -> None:
+    """Label one R-fast item per paper: its question and the span of the paper's first chunk."""
+    from meridian.eval.datasets import write_jsonl
+
+    first_payload: dict[str, dict] = {}
+    for point in index_module.iter_payloads(client, collection):
+        payload = point.payload
+        current = first_payload.get(payload["arxiv_id"])
+        if current is None or payload["char_start"] < current["char_start"]:
+            first_payload[payload["arxiv_id"]] = payload
+    record_list = []
+    for index, (arxiv_id, question) in enumerate(sorted(query_by_paper.items())):
+        payload = first_payload[arxiv_id]
+        record_list.append(
+            {
+                "qid": f"r{index}",
+                "question": question,
+                "spans": [
+                    {
+                        "arxiv_id": arxiv_id,
+                        "version": payload["version"],
+                        "start": payload["char_start"],
+                        "end": payload["char_end"],
+                    }
+                ],
+                "in_fast": True,
+                "review": {"valid": None},
+            }
+        )
+    write_jsonl(path, record_list)

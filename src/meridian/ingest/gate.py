@@ -96,6 +96,7 @@ def run_fast_gate(
     collection: str,
     baseline_path: str | Path | None = None,
     retrieval_set_path: str | None = None,
+    o_ignore_baseline: bool = False,
 ) -> GateResult:
     """
     Evaluate R-fast and compare the configured metric with the baseline.
@@ -112,6 +113,8 @@ def run_fast_gate(
         Override of `gate_config.baseline_path`.
     retrieval_set_path : str or None
         Override of `gate_config.retrieval_set_path`.
+    o_ignore_baseline : bool
+        Measure without comparing, to establish a new baseline after an alias switch.
 
     Returns
     -------
@@ -126,7 +129,7 @@ def run_fast_gate(
     summary = evaluate_search(search, item_list)
     value = float(summary[gate_config.fast_metric])
     path = baseline_path or gate_config.baseline_path
-    baseline_dict = load_baseline(path)
+    baseline_dict = None if o_ignore_baseline else load_baseline(path)
     if baseline_dict is not None and baseline_dict.get("metric") != gate_config.fast_metric:
         raise ValueError(
             f"baseline metric {baseline_dict.get('metric')} differs from {gate_config.fast_metric}"

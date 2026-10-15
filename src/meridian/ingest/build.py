@@ -20,7 +20,12 @@ from meridian.common.config import (
 )
 from meridian.ingest import index as index_module
 from meridian.ingest.chunk import TokenizerLike, build_payload, chunk_paper, load_tokenizer
-from meridian.ingest.embed import DenseEncoder, SparseEncoder, get_dense_encoder, get_sparse_encoder
+from meridian.ingest.embed import (
+    DenseEncoder,
+    SparseEncoder,
+    get_dense_encoder,
+    get_sparse_encoder,
+)
 from meridian.ingest.manifest import STATUS_INDEXED, Manifest, PaperRow
 from meridian.ingest.parse import ParsedPaper, ParseError, parse_and_cache
 from meridian.ingest.records import PaperMeta
@@ -136,6 +141,7 @@ def build_collection(
     collection: str | None = None,
     build_batch_id: str | None = None,
     index_version: int | None = None,
+    indexer_factory=None,
 ) -> BuildReport:
     """
     Build a new versioned collection from every corpus paper in the manifest.
@@ -156,6 +162,9 @@ def build_collection(
         Batch id assigned to papers that were never indexed before.
     index_version : int or None
         Version recorded in payloads; required when `collection` is not a versioned name.
+    indexer_factory : callable or None
+        `(client, collection, index_version, index_config) -> PaperIndexer`; tests inject
+        fake models through it. Defaults to the configured models.
 
     Returns
     -------
@@ -174,14 +183,17 @@ def build_collection(
             raise ValueError(f"{collection} is not a versioned name; pass index_version")
     batch_id = build_batch_id or f"build-{uuid.uuid4().hex[:12]}"
 
-    dense_encoder = get_dense_encoder(index_config.dense)
+    if indexer_factory is None:
+        indexer = PaperIndexer(client, collection, index_version, index_config)
+    else:
+        indexer = indexer_factory(client, collection, index_version, index_config)
+    dense_dim = indexer.dense_encoder.dimension
     index_module.create_index_collection(
         client,
         collection,
-        dense_encoder.dimension,
-        index_module.build_metadata(index_config, index_version, dense_encoder.dimension),
+        dense_dim,
+        index_module.build_metadata(index_config, index_version, dense_dim),
     )
-    indexer = PaperIndexer(client, collection, index_version, index_config, dense_encoder)
     report = BuildReport(collection=collection, index_version=index_version)
     for row in manifest.corpus_papers():
         versioned_id = row.meta.versioned_id

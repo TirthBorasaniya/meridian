@@ -39,8 +39,9 @@ typecheck:
 test:
 	$(RUN) pytest
 
+# needs the compose Qdrant: make up, then make test-integration
 test-integration:
-	$(RUN) pytest -m integration -o addopts=""
+	QDRANT_URL=$${QDRANT_URL:-http://127.0.0.1:6333} $(RUN) pytest -m integration -o addopts=""
 
 test-e2e:
 	$(RUN) pytest -m e2e -o addopts=""
