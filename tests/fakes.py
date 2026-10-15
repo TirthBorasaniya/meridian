@@ -89,3 +89,21 @@ class FakeReranker:
         if not query_set:
             return [0.0 for _ in text_list]
         return [len(query_set & set(words(text))) / len(query_set) for text in text_list]
+
+
+class ScriptedTransport:
+    """LLM transport whose reply is computed by a function of the request."""
+
+    def __init__(self, responder) -> None:
+        self.responder = responder
+        self.request_list: list[tuple[str, list[dict], dict]] = []
+
+    def complete(self, model, message_list, param_dict, on_delta):
+        from meridian.common.llm_client import Completion
+
+        self.request_list.append((model, message_list, param_dict))
+        text = self.responder(model, message_list, param_dict)
+        if on_delta is not None:
+            for word in text.split(" "):
+                on_delta(word + " ")
+        return Completion(text=text, input_tokens=100, output_tokens=20)

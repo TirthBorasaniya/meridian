@@ -1,0 +1,26 @@
+# Construction of the labeled retrieval set R (SPEC S6.1).
+version: 1
+
+n_items: 150
+n_fast: 40
+seed: 13
+# questions whose content tokens overlap the source chunk by more than this are dropped
+max_token_overlap: 0.5
+# question-writing attempts per sampled chunk before another chunk is drawn
+attempts_per_chunk: 2
+min_chunk_tokens: 120
+# sections that rarely carry answerable content
+excluded_section_patterns:
+  - "front matter"
+  - "acknowledg"
+  - "funding"
+  - "author contribution"
+  - "ethic"
+  - "checklist"
+  - "broader impact"
+  - "limitations"
+review_sample_size: 30
+review_seed: 29
+review_top_k: 10
+output_path: "eval/retrieval_set.jsonl"
+meta_path: "eval/retrieval_set_meta.json"
