@@ -298,7 +298,8 @@ class ModelsConfig(VersionedConfig):
     backoff_base_seconds: float = Field(gt=0.0)
     backoff_max_seconds: float = Field(gt=0.0)
     roles: dict[str, RoleConfig]
-    prices_usd_per_million_tokens: dict[str, PriceConfig]
+    prices_usd_per_million_tokens: dict[str, PriceConfig | None]
+    prices_source_url: str
     prices_source: str
     prices_checked_on: date | None = None
 

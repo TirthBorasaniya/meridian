@@ -102,3 +102,5 @@ def test_model_tiers_after_the_llama_retirement():
         assert "llama" not in role_config.model.lower()
         assert "qwen3.8" not in role_config.model
         assert role_config.model in models_config.prices_usd_per_million_tokens
+    assert models_config.prices_usd_per_million_tokens["openai/gpt-oss-120b"].output == 0.60
+    assert models_config.prices_checked_on is not None

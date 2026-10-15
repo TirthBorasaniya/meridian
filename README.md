@@ -96,7 +96,11 @@ make ingest      # one gated incremental batch
 ### Corpus and ingestion
 `configs/corpus.yaml` records the exact query that produced the 199-paper corpus:
 `cs.CL`, `cs.LG`, or `cs.AI`, six abstract terms, submissions from 2022 through 2024, sorted
-by relevance. The backfill reproduces the corpus by versioned id. Daily increments query by
+by relevance. The backfill reproduces the corpus by versioned id. The corpus started broader
+than it grows: daily additions now focus on LLM reasoning, calibration, and chain-of-thought
+(abstracts that mention "large language model" together with one of those three terms), which
+keeps a typical day under 40 papers. Pure benchmark and evaluation-methodology papers are no
+longer added unless they match that clause (D-009). Daily increments query by
 submission date from the last accepted watermark, oldest first and capped per run. A three-day
 lookback absorbs arXiv's announcement delay, and newer versions of corpus papers replace older
 ones after the gate accepts the batch (`docs/runbook.md`).
@@ -195,9 +199,11 @@ Full context and alternatives are in [DECISIONS.md](DECISIONS.md).
 - **Synthetic retrieval labels.** R's questions are written by an LLM from single chunks, so
   they favor lexical overlap with their source. The overlap filter and the manual review of 30
   items reduce this bias toward BM25 without removing it.
-- **Broad daily query.** The recorded topic query matched 398 submissions on a single day
-  (2026-10-08). At 40 papers per run, increments fall further behind real time each day
-  unless the optional narrowing clause in `configs/corpus.yaml` is set.
+- **Daily scope narrowed.** The recorded topic query matched 398 submissions on a single day
+  (2026-10-08), so daily additions use the narrowing clause of D-009. Its median is 24.5
+  matches a day, and 4 of the last 30 days exceeded the 40-paper cap, so bursts take about two
+  days to clear. The corpus therefore drifts toward reasoning, calibration, and
+  chain-of-thought papers, and the R-fast gate does not measure that drift.
 - **Corpus gap.** Papers submitted between the backfill's 2024-12-31 ceiling and the backfill
   date are not in the corpus (D-004).
 - **Baseline drift.** As SPEC S3.6 requires, the R-fast baseline is updated after every

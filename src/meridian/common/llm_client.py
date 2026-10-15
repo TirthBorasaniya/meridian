@@ -105,7 +105,9 @@ class UsageMeter:
         """
         cost = 0.0
         for model, entry in self.tokens_by_model(o_include_cached).items():
-            price = models_config.prices_usd_per_million_tokens[model]
+            price = models_config.prices_usd_per_million_tokens.get(model)
+            if price is None:
+                raise RuntimeError(f"no published price is recorded for {model} in models.yaml")
             cost += entry["input"] * price.input / 1e6 + entry["output"] * price.output / 1e6
         return cost
 

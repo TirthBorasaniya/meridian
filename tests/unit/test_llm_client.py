@@ -133,3 +133,17 @@ def test_inline_reasoning_is_stripped_before_caching():
     client = LLMClient(get_models_config(), ScriptedTransport(lambda *_: reply), cache)
     assert client.chat_json("judge", MESSAGES) == {"supported": True}
     assert client.chat("judge", MESSAGES).text == '{"supported": true}'
+
+
+def test_cost_refuses_an_unpriced_model():
+    models_config = get_models_config()
+    transport = ScriptedTransport(lambda *_: "x")
+    client = LLMClient(models_config, transport, MemoryResponseCache())
+    with usage_scope() as meter:
+        client.chat("generator", MESSAGES)
+    assert meter.cost_usd(models_config) > 0
+    with usage_scope() as meter:
+        client.chat("judge", MESSAGES)
+    assert models_config.prices_usd_per_million_tokens[models_config.role("judge").model] is None
+    with pytest.raises(RuntimeError, match="no published price"):
+        meter.cost_usd(models_config)

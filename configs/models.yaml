@@ -50,12 +50,14 @@ roles:
     max_tokens: 2048
     reasoning_effort: "low"
 
-# USD per million tokens. Used only to convert measured token counts into cost in E3.
-# Values must be confirmed against the provider's published pricing before E3 is run.
+# USD per million tokens, used only to convert measured token counts into cost in E3.
+# Retrieved from the page named in prices_source_url on prices_checked_on. A model without a
+# published price on that page is null, and cost conversion refuses to run until it is priced.
 prices_usd_per_million_tokens:
   "openai/gpt-oss-20b": { input: 0.075, output: 0.30 }
-  "openai/gpt-oss-120b": { input: 0.15, output: 0.75 }
-  # carried over from qwen/qwen3-32b; qwen/qwen3.6-27b has no confirmed price here
-  "qwen/qwen3.6-27b": { input: 0.29, output: 0.59 }
-prices_source: "unconfirmed; check https://groq.com/pricing and update prices_checked_on"
-prices_checked_on: null
+  "openai/gpt-oss-120b": { input: 0.15, output: 0.60 }
+  # not listed on the models page when retrieved (it lists qwen/qwen3.8-27b instead)
+  "qwen/qwen3.6-27b": null
+prices_source_url: "https://console.groq.com/docs/models"
+prices_source: "Groq models page; https://groq.com/pricing shows no prices"
+prices_checked_on: 2026-10-15

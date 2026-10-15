@@ -232,10 +232,11 @@ def run_e3(config: E3Config) -> dict:
         "models": {role: models_config.role(role).model for role in models_config.roles},
         "prices": {
             "usd_per_million_tokens": {
-                model: price.model_dump()
+                model: price.model_dump() if price else None
                 for model, price in models_config.prices_usd_per_million_tokens.items()
             },
             "checked_on": str(models_config.prices_checked_on),
+            "source_url": models_config.prices_source_url,
         },
         "score_band_grading": score_band,
         "llm_grading_only": no_score_band,

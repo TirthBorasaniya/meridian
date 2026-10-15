@@ -150,3 +150,45 @@ Consequences:
   carried over from `qwen/qwen3-32b`, and the 20b entry is from memory. Both must be checked
   before E3, and `prices_checked_on` stays null until then.
 - No reference to `qwen/qwen3.8-27b` existed in the repository, so no replacement was needed.
+
+## D-009: Daily additions are narrowed to LLM reasoning, calibration, and chain-of-thought
+Status: accepted (2026-10-15)
+Context: the recorded topic query matched about 305 submissions a day (9,165 over the 30 days
+from 2026-09-15 to 2026-10-14, minimum 114, maximum 641). At 40 papers per run, increments
+would fall further behind every day (D-003).
+Decision: `arxiv.increment.extra_clause` is
+`abs:"large language model" AND (abs:"reasoning" OR abs:"calibration" OR abs:"chain-of-thought")`,
+ANDed into the recorded query for daily increments only. The backfill query is unchanged. Daily
+arXiv counts for those 30 days: median 24.5, mean 26.3, minimum 8, maximum 61, and 4 days above
+40 (09-28: 61, 09-29: 55, 09-30: 54, 10-08: 44). The cap and the three-day lookback carry the
+excess to the next run, so a burst clears in about two days. The measurement was a one-off
+count against arXiv's date filter with requests spaced 3.2 seconds apart.
+Alternatives, measured over the same 30 days: titles only, `ti:reasoning OR
+ti:"chain-of-thought" OR ti:calibration` (median 24, 3 days above 40; rejected because the
+corpus is defined on abstracts); that clause plus `(ti:evaluation AND abs:"language model")`
+(median 30.5, 8 days above 40; kept as the fallback if evaluation-methodology coverage matters
+more); `abs:"chain-of-thought" OR abs:"calibration"` (30-day total 1,189, mean 40, too close to
+the cap).
+Consequences: papers that never say "large language model" in the abstract, and benchmark or
+evaluation-methodology papers that mention none of the three terms, are no longer added. The
+corpus started broader than it grows. Papers added before this decision stay, and the R-fast
+gate measures only those, so it will not detect the shift.
+
+## D-010: Groq prices come from the models page, and the Qwen judge id is unverified
+Status: accepted (2026-10-15)
+Context: remembered and carried-over prices were not acceptable for E3's cost numbers.
+`https://groq.com/pricing` loads but shows no prices. `https://console.groq.com/docs/models`,
+retrieved 2026-10-15, lists them.
+Decision: `configs/models.yaml` records `openai/gpt-oss-20b` at $0.075 input and $0.30 output
+per million tokens, and `openai/gpt-oss-120b` at $0.15 input and $0.60 output, with the source
+URL and retrieval date. The earlier remembered 120b output price of $0.75 was wrong. That page
+does not list `qwen/qwen3.6-27b`; its only Qwen entry is the Preview model `qwen/qwen3.8-27b`
+at $0.80 input and $4.00 output. The judge is configured as `qwen/qwen3.6-27b` (D-008), so its
+price is null, and cost conversion raises an error naming the unpriced model instead of
+estimating. E3 cannot report cost until the judge is priced.
+Alternatives: keep an estimated price (rejected: not a measured value); switch the judge to
+`qwen/qwen3.8-27b` (not done: the judge choice is the maintainer's, and D-008 records the
+instruction to replace references to that model).
+Consequences: before E2, E3, or the rebuild gate run, the judge model id must be confirmed with
+the Groq `/openai/v1/models` endpoint, because the models page does not list it. A different
+judge id needs only `configs/models.yaml` and a price.

@@ -186,3 +186,17 @@ def test_read_seed_ids_skips_comments(tmp_path):
     path.write_text("2201.11903\n")
     with pytest.raises(ValueError):
         read_seed_ids(path)
+
+
+def test_configured_narrowing_clause_is_applied_to_increments():
+    query_config = get_corpus_config().arxiv
+    assert query_config.increment.extra_clause == (
+        'abs:"large language model" AND '
+        '(abs:"reasoning" OR abs:"calibration" OR abs:"chain-of-thought")'
+    )
+    query = increment_query(query_config, datetime(2026, 10, 1), datetime(2026, 10, 2))
+    assert ' AND (abs:"large language model" AND (abs:"reasoning"' in query
+    # the backfill query stays the recorded one
+    assert normalize_query(backfill_query(query_config)) == normalize_query(
+        query_config.recorded_backfill_query
+    )

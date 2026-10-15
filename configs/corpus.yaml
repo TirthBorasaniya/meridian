@@ -35,10 +35,9 @@ arxiv:
     sort_order: "ascending"
     max_papers_per_run: 40
     lookback_days: 3
-    # The recorded query matched 398 papers submitted on 2026-10-08 alone, so unnarrowed
-    # increments exceed max_papers_per_run every day. A narrowing clause such as
-    # 'abs:"chain-of-thought" OR abs:"calibration"' is a scope decision left to the maintainer.
-    extra_clause: null
+    # The recorded query matched 398 papers submitted on 2026-10-08 alone. This clause keeps the
+    # daily match count at a median of 24.5 (4 of the last 30 days above 40); see D-009.
+    extra_clause: 'abs:"large language model" AND (abs:"reasoning" OR abs:"calibration" OR abs:"chain-of-thought")'
     o_check_versions: true
   page_size: 100
 
