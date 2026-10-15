@@ -131,6 +131,7 @@ def build_collection(
     corpus_config: CorpusConfig,
     collection: str | None = None,
     build_batch_id: str | None = None,
+    index_version: int | None = None,
 ) -> BuildReport:
     """
     Build a new versioned collection from every corpus paper in the manifest.
@@ -149,6 +150,8 @@ def build_collection(
         Explicit collection name; defaults to the next `meridian_v{N}`.
     build_batch_id : str or None
         Batch id assigned to papers that were never indexed before.
+    index_version : int or None
+        Version recorded in payloads; required when `collection` is not a versioned name.
 
     Returns
     -------
@@ -161,9 +164,10 @@ def build_collection(
     if collection is None:
         index_version = index_module.next_version(client, prefix)
         collection = index_module.collection_name(prefix, index_version)
-    else:
-        parsed_version = index_module.parse_version(collection, prefix)
-        index_version = parsed_version if parsed_version is not None else 0
+    elif index_version is None:
+        index_version = index_module.parse_version(collection, prefix)
+        if index_version is None:
+            raise ValueError(f"{collection} is not a versioned name; pass index_version")
     batch_id = build_batch_id or f"build-{uuid.uuid4().hex[:12]}"
 
     dense_encoder = get_dense_encoder(index_config.dense)

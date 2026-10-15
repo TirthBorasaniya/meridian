@@ -1,0 +1,19 @@
+# E1: retrieval quality and per-stage latency per configuration (SPEC S6.2).
+version: 1
+
+retrieval_set_path: "eval/retrieval_set.jsonl"
+split: "full"
+k: 10
+warmup_queries: 3
+configurations: ["dense", "sparse", "hybrid", "hybrid_rerank", "legacy"]
+prefetch_sensitivity:
+  mode: "hybrid_rerank"
+  limits: [10, 25, 50, 100]
+chunk_size_sensitivity:
+  mode: "hybrid_rerank"
+  # the live collection is the 400-token point; other sizes are built into temporary collections
+  chunk_tokens: [200, 400, 600]
+  overlap_fraction: 0.15
+  collection_prefix: "meridian_e1_chunks_"
+  o_drop_after: true
+output: "e1_retrieval"
