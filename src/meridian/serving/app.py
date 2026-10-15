@@ -15,6 +15,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field
 
 from meridian.common.metrics import REGISTRY
+from meridian.common.settings import get_settings
 from meridian.serving.runtime import Runtime, build_runtime, index_info_dict
 from meridian.serving.sse import sse_event, stream_blocking
 
@@ -86,7 +87,23 @@ def create_app(runtime: Runtime | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.runtime = runtime or build_runtime()
+        watcher = None
+        if runtime is None and get_settings().o_watch_releases:
+            from pathlib import Path
+
+            from meridian.common.config import get_release_config
+            from meridian.release.watcher import ReleaseWatcher
+
+            release_config = get_release_config()
+            watcher = ReleaseWatcher(
+                app.state.runtime,
+                release_config.watch_interval_seconds,
+                Path(release_config.work_dir) / "watch",
+            )
+            watcher.start()
         yield
+        if watcher is not None:
+            watcher.stop()
 
     app = FastAPI(title="Meridian", version="0.2.0", lifespan=lifespan)
     ui_root = resources.files("meridian.serving").joinpath("ui")
@@ -158,8 +175,6 @@ def create_app(runtime: Runtime | None = None) -> FastAPI:
 def cli_serve(args) -> int:
     """`meridian serve`: run uvicorn."""
     import uvicorn
-
-    from meridian.common.settings import get_settings
 
     uvicorn.run(
         create_app(),

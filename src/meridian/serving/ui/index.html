@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meridian</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Meridian</h1>
+    <p class="tagline">Answers from arXiv papers on <span id="topic">LLM reasoning and evaluation</span>, with a citation after every claim.</p>
+  </header>
+
+  <main>
+    <form id="ask-form" autocomplete="off">
+      <label for="question" class="visually-hidden">Question</label>
+      <textarea id="question" name="question" rows="3" maxlength="2000"
+        placeholder="For example: How does self-consistency improve over greedy chain-of-thought decoding?"
+        required></textarea>
+      <div class="form-row">
+        <button type="submit" id="ask-button">Ask</button>
+        <button type="button" id="new-session" class="secondary">New conversation</button>
+        <span id="status" role="status" aria-live="polite"></span>
+      </div>
+    </form>
+
+    <section id="answer-card" class="card" hidden aria-live="polite">
+      <div id="state-banner" class="banner" hidden></div>
+      <div id="answer" class="answer"></div>
+      <h2 id="sources-heading" class="sources-heading" hidden>Sources</h2>
+      <ol id="sources" class="sources"></ol>
+    </section>
+  </main>
+
+  <footer id="footer">
+    <span id="index-version">Index: loading</span>
+    <span id="paper-count"></span>
+    <span id="last-ingest"></span>
+    <span class="note">Excerpts are limited to two sentences; follow a source to read the paper on arXiv.</span>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

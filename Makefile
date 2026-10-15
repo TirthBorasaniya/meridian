@@ -15,7 +15,7 @@ COMPOSE := docker compose
 	backfill index ingest rebuild rollback scheduler retrieval-set review-set references \
 	eval eval-retrieval eval-answers eval-serving eval-ingest eval-embedder eval-demo \
 	embedder-pairs embedder-negatives embedder-train embedder-push train-embedder \
-	release restore benchmark loadtest results results-check clean
+	release restore deploy-space benchmark loadtest results results-check clean
 
 # ============= Environment =============
 
@@ -144,6 +144,9 @@ train-embedder: embedder-pairs embedder-negatives embedder-train
 
 release:
 	$(RUN) meridian release publish
+
+deploy-space:
+	$(RUN) python scripts/deploy_space.py
 
 restore:
 	$(RUN) meridian release restore

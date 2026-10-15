@@ -1,0 +1,13 @@
+# E6: public demo cold start, latency for 20 scripted questions, and rate limiting.
+version: 1
+
+# defaults to MERIDIAN_DEMO_URL when empty
+base_url: ""
+questions_path: "eval/answer_set.jsonl"
+questions_split: "fast"
+# the demo allows 10 requests per minute, so scripted questions are spaced
+question_interval_s: 6.5
+o_restart_for_cold_start: true
+cold_start_timeout_s: 1800
+rate_limit_burst: 12
+output: "e6_demo"

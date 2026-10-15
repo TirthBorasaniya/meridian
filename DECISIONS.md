@@ -106,3 +106,20 @@ unavailable or inconsistent during recovery); a new version number per day (reje
 version number would stop meaning "built with this configuration").
 Consequences: a restore briefly holds two copies. The answer cache restarts empty after every
 daily release, which bounds its hit rate on the demo.
+
+## D-007: The demo Space runs the Qdrant server binary next to the API
+Status: accepted (2026-10-14)
+Context: SPEC S5.2 prefers Qdrant local mode inside the Space if it supports named sparse
+vectors and the RRF Query API, verified by a test in the image build. Releases, however, are
+Qdrant server snapshots (SPEC S3.9), and local mode cannot restore a server snapshot.
+Decision: the image build runs `space/check_local_mode.py`, which records in the image whether
+local mode supports the query pattern. The container then runs the Qdrant server binary,
+copied from the pinned `qdrant/qdrant:v1.19.2` image, as a second process, and restores the
+latest snapshot into it at startup and hourly. Model weights are baked into the image to
+shorten cold starts. Uvicorn trusts `X-Forwarded-For` only from private proxy ranges, so the
+per-IP limits see the rightmost public address and a client cannot spoof its own.
+Alternatives: local mode with a portable export of points instead of snapshots (rejected: a
+second release format beside the one CI already verifies); a managed Qdrant cluster (rejected:
+an always-on service the project does not otherwise need).
+Consequences: one container, two processes, and the same snapshot format end to end. The local
+mode check result is recorded but does not change the runtime.
