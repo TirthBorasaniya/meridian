@@ -1,358 +1,238 @@
 # Meridian
 
-An agentic retrieval-augmented generation system over a corpus of arXiv papers
-on LLM reasoning and evaluation.
+**Public demo:** not deployed yet. The demo runs as a Hugging Face Docker Space (`space/`); its
+URL is added here when the Space is live. A Space on free hardware sleeps when idle, so the
+first request after a pause waits for the cold start that E6 measures below.
 
-## Problem
-
-Naive RAG fails silently: when retrieval misses, the model answers confidently
-from irrelevant context, and when the model hallucinates, nothing in the
-pipeline notices, so a wrong answer is indistinguishable from a right one at
-the API boundary. Meridian detects each failure separately and recovers
-differently for each: irrelevant retrieval falls back to web search, an
-ungrounded answer retries generation against the same context, and an
-on-topic-but-off-target answer rewrites the query and retrieves again.
-
-Most tutorial implementations collapse these three into one check, which
-forces one recovery for three different faults. A hallucinated answer drawn
-from good documents should retry generation, not discard the documents and
-search the web; a well-grounded answer that misses the question should rewrite
-the query, not re-generate the same text. Keeping the edges independent is what
-makes targeted recovery possible.
-
-```
-route_query -> retrieve -> grade_documents -> generate -> check_hallucination -> check_answer -> END
-                              |                                  |                      |
-                              v (no doc passes)                  v (ungrounded)         v (off-target)
-                          web_search ----> generate          generate            rewrite_query -> retrieve
-```
+Meridian is a research assistant and retrieval service over a maintained corpus of arXiv
+papers on LLM reasoning and evaluation. It answers with a citation to a specific paper section
+after every sentence that states a fact. When the corpus does not support an answer, it says
+so instead of guessing. When retrieval is weak, it rewrites the query, and it can fall back to
+web search with clearly marked external sources. The corpus grows daily. Every index change is
+versioned, and an index version goes live only if retrieval quality on a labeled query set
+does not regress.
 
 ## Results
 
-RAGAS evaluation over 199 papers and 10,997 chunks, scored against the chunks
-the retriever actually returned rather than the full corpus.
+Every number below is rendered by `make results` from `results/*.json`, which only the
+committed evaluation scripts write. A row marked "not yet measured" has no results file yet.
 
-| Metric | Score | Samples scored |
+<!-- results:headline:start -->
+| Measure | Value | Source |
 |---|---|---|
-| Faithfulness | 0.9285 | 14 / 20 |
-| Context precision (no reference) | 0.7864 | 17 / 20 |
-| Answer relevancy | 0.9035 | 20 / 20 |
-
-Run configuration:
-
-- **Question set:** 20 questions, the smoke subset of the 75-question set.
-- **Judge:** `openai/gpt-oss-120b` served by Groq, `strictness=1`,
-  `max_tokens=4096`, `reasoning_effort="low"`.
-- **Generator:** `llama-3.3-70b-versatile`, also served by Groq.
-- **Graph behaviour:** 19 of 20 questions were answered from the corpus, 1 fell
-  back to web search, and 17 needed no recovery iteration at all.
-
-**Coverage is incomplete, and the means above are computed over the scored
-subset, not over all 20 questions.** Nine judge jobs failed during the run:
-seven hit Groq's free-tier daily token cap (200,000 tokens per day) and two
-timed out. Faithfulness is therefore an average over 14 samples and context
-precision over 17. The lost jobs skewed toward the token-heaviest requests, so
-they are not a random sample of the question set, and the direction of that
-bias is unknown. A clean run needs a judge budget that covers the whole suite.
-
-**The judge shares an inference provider with the generator.** Both run on
-Groq. The judge is at least a different model family from the generator, so
-faithfulness is not self-assessed, but a judge behind a fully independent
-provider would be a stronger check and is the configuration to prefer. Set
-`RAGAS_JUDGE_PROVIDER` to `openai` or `anthropic` to get one.
-
-Against the project's targets, faithfulness (>= 0.87) is met and context
-precision (>= 0.81) is not. Results are written to
-`data/eval_results/latest.json` and served at `GET /eval-summary`; each
-artifact records the judge identity and per-metric scored counts alongside the
-scores, because a RAGAS number is not interpretable without knowing which model
-produced it and how many samples it covers.
-
-### Operational characteristics
-
-Ingesting 199 papers took **1 hour 14 minutes**, of which roughly 67 minutes
-was Docling PDF parsing. Parsing, not embedding or network I/O, is the
-bottleneck, and it scales with PDF size rather than page count: the corpus
-contains PDFs up to 37 MB, and a single 31 MB paper takes up to two minutes on
-its own. Budget ingestion time from the size distribution of the corpus, not
-from the paper count.
-
-One paper of 200 was excluded. `2309.12481v2` is a withdrawn arXiv version, for
-which arXiv serves no PDF, so the pipeline skips it before issuing a request.
-
-## Quick start
-
-Requires Python 3.11 strictly (not 3.12 or 3.13), PostgreSQL 15 (or Docker
-Compose), a Groq API key, and optionally Tavily for the web fallback and
-Langfuse for tracing.
-
-```bash
-# 1. Environment
-python3.11 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-
-# 2. Configuration
-cp .env.example .env
-# edit .env: GROQ_API_KEY, TAVILY_API_KEY, DATABASE_URL, QDRANT_URL
-
-# 3. Back the stack with Postgres and Qdrant
-docker compose up -d postgres qdrant
-
-# 4. Ingest a 10-paper smoke corpus, then the full corpus
-python scripts/ingest.py --max-papers 10
-python scripts/ingest.py
-
-# 5. Serve
-uvicorn src.meridian.api.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-```bash
-# Query
-curl -X POST http://localhost:8000/query \
-  -H "Content-Type: application/json" \
-  -d '{"query": "What is chain-of-thought prompting?", "session_id": "demo"}'
-
-# Evaluate: 20-question smoke run first, then the full 75-question suite
-python scripts/evaluate.py --num-questions 20
-python scripts/evaluate.py
-
-# Score sampled production traces from Langfuse
-python scripts/score_production_traces.py --n 50
-
-# Full stack, and tests
-docker compose up --build
-pytest
-```
-
-| Method | Path | Description |
-|---|---|---|
-| POST | `/query` | Run the agentic RAG graph for a query. |
-| GET | `/health` | Service readiness and indexed point count. |
-| GET | `/eval-summary` | Most recent persisted RAGAS metric summary. |
-
-## Limitations
-
-- **Single-domain corpus.** The corpus is arXiv papers on LLM reasoning and
-  evaluation. That domain was chosen deliberately, because every question is
-  answerable from a specific passage and a hallucination is therefore
-  detectable, but it also means the reported scores say nothing about how the
-  system behaves on heterogeneous or open-domain content.
-- **No real users.** Every number here comes from a fixed question set that was
-  written alongside the system. There is no production traffic, so there is no
-  evidence about the queries real users would actually ask, and the
-  question set may well be easier and better-matched to the corpus than real
-  usage would be.
-- **Recovery is bounded at three iterations.** The cap prevents unbounded
-  loops, but it also means a query needing more than three rounds of rewriting
-  or regeneration returns the best answer available at the cap rather than a
-  correct one. One of the 20 evaluation questions hit the cap.
-- **The judge shares an inference provider with the generator.** Both run on
-  Groq. This is weaker than a judge behind an independent provider, and the
-  same provider's daily token cap is what truncated the evaluation run.
-- **One paper is excluded from the corpus.** `2309.12481v2` is a withdrawn
-  arXiv version. Falling back to its earlier version was possible and was
-  rejected: the paper was withdrawn because it "contains erroneous
-  evaluations", and a corpus meant to support grounded answers about
-  evaluation methodology should not serve retracted claims as sourced fact.
+| Retrieval recall@5, hybrid plus rerank (R-full) | not yet measured | E1 |
+| Retrieval nDCG@10, hybrid plus rerank (R-full) | not yet measured | E1 |
+| RAGAS faithfulness (A) | not yet measured | E2 |
+| Citation precision (A) | not yet measured | E2 |
+| Refusal accuracy (O) | not yet measured | E2 |
+| End-to-end latency p95 | not yet measured | E3 |
+| Cost per answer (USD) | not yet measured | E3 |
+| Answer cache hit rate on repeats | not yet measured | E3 |
+| Scheduled index runs recorded | not yet measured | E4 |
+| Adapted embedder recall@5 change, full pipeline | not yet measured | E5 |
+| Demo cold start | not yet measured | E6 |
+<!-- results:headline:end -->
 
 ## Architecture
 
-### The cross-encoder reranker doubles as the document grader
+```mermaid
+flowchart LR
+  subgraph Ingestion
+    SCH[scheduler] --> FE[fetch metadata: arXiv API]
+    FE --> DL[download PDF] --> PA[parse to sections] --> CH[chunk]
+    CH --> EM[embed dense + sparse] --> UP[upsert batch into live collection]
+    UP --> GATE{R-fast gate}
+    GATE -->|pass| KEEP[keep batch]
+    GATE -->|fail| RB[delete batch points, alert]
+  end
+  subgraph Rebuild
+    CFG[config change] --> NEW[build meridian_vN+1] --> G2{R-full and A-full vs live} -->|pass| SW[switch alias meridian_live]
+  end
+  U[client] --> API[FastAPI /v1/ask SSE, /v1/search] --> AG[LangGraph agent]
+  AG --> RET[hybrid retrieve + rerank] --> Q[(Qdrant: alias meridian_live)]
+  AG --> LLM[Groq]
+  AG --> WEB[web search fallback]
+  API --> CA[(Redis cache)]
+  API --> PR[Prometheus]
+```
 
-`grade_documents` does not call an LLM. The same cross-encoder that reranks
-candidates (`BAAI/bge-reranker-base`) also decides relevance: it scores each
-post-fusion candidate against the query, filters anything below 0.5, and
-returns the top 5. If nothing clears the threshold, the graph routes to the
-web-search fallback.
-
-The alternative is the conventional CRAG design, an LLM grader called once per
-document. That costs 500 to 800 ms and a set of tokens per document, against
-under 50 ms for the cross-encoder, and on a 20-candidate list the difference is
-the dominant term in query latency. The cross-encoder is also more consistent,
-because it emits a calibrated score rather than a sampled yes/no.
-
-The trade is real and worth naming: a cross-encoder scores topical similarity,
-so it cannot express the kind of judgement an LLM grader can, such as "this
-passage is about the right subject but answers a different question". Grading
-nuance is exchanged for latency and consistency. The 0.5 threshold is the whole
-of the policy, which makes it a single tunable knob rather than a prompt.
-Context precision at 0.7864 is the one metric below target, and it is the
-metric where that missing nuance would show up first, though the run's
-incomplete coverage means this is a hypothesis rather than a measured cause.
-
-### Model tiering: 8B for routing and grading, 70B for generation
-
-Four of the five LLM call sites in the graph are classification: routing the
-query type, grading hallucination, grading answer relevance, and rewriting the
-query. All four run on `llama-3.1-8b-instant`. Only generation runs on
-`llama-3.3-70b-versatile`.
-
-Classification tasks are where a small model loses least. Each returns a
-structured verdict over a short input, and the 8B model produces those about as
-reliably as the 70B model does, while generation is the one step that needs the
-larger context window and the stronger reasoning to synthesise five retrieved
-chunks into a grounded answer. Routing only that call to the 70B model cuts
-per-query API cost by roughly 60 to 70 percent.
-
-Tiering also helps with availability, because Groq's rate limits are applied
-per model: grading traffic draws on the 8B model's budget and does not consume
-the generation model's. The 70B tier is the constrained one, and keeping four of
-five call sites off it is what keeps a query affordable.
-
-### Stack
-
-| Layer | Tool | Notes |
+| Component | Implementation | Code |
 |---|---|---|
-| Graph orchestration | LangGraph | State graph, conditional edges, streaming |
-| Vector store | Qdrant | Local disk persistence, or a server via `QDRANT_URL` |
-| Sparse retrieval | rank_bm25 | BM25Okapi over the tokenised chunk corpus |
-| Embeddings | BAAI/bge-small-en-v1.5 | via sentence-transformers; asymmetric query prefix |
-| Reranking | BAAI/bge-reranker-base | Cross-encoder, applied post-RRF only |
-| LLM inference | Groq | `llama-3.1-8b-instant` (routing, grading, rewrite), `llama-3.3-70b-versatile` (generation) |
-| Observability | Langfuse | Per-node tracing via `@observe` |
-| Web fallback | Tavily | CRAG fallback for out-of-corpus queries |
-| Checkpointing | SqliteSaver (LangGraph) | Mid-session graph state persistence |
-| Cross-session memory | SQLite (`sessions.db`) | Conversation recall across process restarts |
-| Evaluation | RAGAS | Scored against actually retrieved chunks |
-| Ingestion pipeline | Prefect 2.x | arXiv fetch and Docling parse flows |
-| PDF parsing | Docling | Structured extraction from arXiv PDFs |
-| Metadata store | PostgreSQL 15 | Paper metadata and ingestion state |
-| Serving | FastAPI + Uvicorn | Lifespan context manager |
-| Demo UI | Gradio | Staged under `spaces/`, not deployed |
-| Infra | Docker Compose | Compose Specification format |
-| CI | GitHub Actions | ruff, mypy, pytest on push |
+| Corpus scope | Recorded arXiv query, 199 seed ids | `configs/corpus.yaml`, `configs/corpus_seed_ids.txt` |
+| Fetch | One connection, one request per 3 s with jitter, Retry-After, backoff | `src/meridian/ingest/arxiv_client.py` |
+| Parse | `pymupdf4llm` with `pypdf` fallback, references cut | `src/meridian/ingest/parse.py` |
+| Chunk | Section-aware 400-token windows, 60 overlap | `src/meridian/ingest/chunk.py` |
+| Index | `meridian_v{N}` with `dense` and `sparse` (BM25, IDF) vectors behind `meridian_live` | `src/meridian/ingest/index.py` |
+| Retrieval | Two prefetches fused with RRF, cross-encoder rerank of 30 | `src/meridian/retrieval/hybrid.py` |
+| Daily ingestion | Gated batches with rollback by `ingest_batch_id` | `src/meridian/ingest/pipeline.py`, `gate.py`, `scheduler.py` |
+| Rebuilds | Full gate and atomic alias switch | `src/meridian/ingest/rebuild.py` |
+| Agent | Route, rewrite, retrieve, grade, decide, generate, verify, finalize | `src/meridian/agent/` |
+| Serving | SSE API, caches keyed by index revision, metrics, rate limits | `src/meridian/serving/` |
+| Embedder | Synthetic pairs, hard negatives, fine-tuning, Hub release | `src/meridian/embedder/` |
+| Releases | Snapshots on a private dataset repo, daily CI | `src/meridian/release/`, `.github/workflows/daily-index.yml` |
+| Demo | Docker Space with an in-container Qdrant server | `space/` |
 
-### Corpus and retrieval
+## Quickstart
 
-LLM reasoning and evaluation papers from arXiv (`cs.CL`, `cs.LG`, `cs.AI`),
-published 2022 to 2024. Chunking is recursive character splitting at 512 tokens
-with 64 tokens of overlap. The retrieval and graph layers are corpus-agnostic:
-pointing the ingestion pipeline at a different document set adapts the system
-to another domain.
+Requires Python 3.11.9 through `uv`, Docker, and the keys listed in `.env.example`.
 
-- **Two-stage retrieval, RRF then cross-encoder.** Dense top-20 (Qdrant, BGE)
-  and sparse top-20 (BM25) are independent ranked lists merged by Reciprocal
-  Rank Fusion at k=60. The cross-encoder scores only that merged top-20.
-  Scoring all 40 candidates would add latency for no quality gain, since RRF
-  already ranked the bottom half low for good reason.
-- **BGE asymmetric instruction prefix.** Queries are encoded with
-  `"Represent this sentence for searching relevant passages: "`; documents are
-  encoded bare. Encoding queries without the prefix draws them from a different
-  distribution than the documents, which depresses similarity and measurably
-  degrades retrieval.
-- **Qdrant over ChromaDB.** Named collections, metadata filtering by category,
-  year, and author, and configurable HNSW indexing, none of which ChromaDB
-  exposes. Local disk persistence needs no server process for development.
-- **Deterministic point IDs via UUID5.** Qdrant point IDs must be unsigned
-  integers or UUIDs, so the readable `{arxiv_id}_{chunk_index}` chunk ID is
-  mapped through `uuid5(namespace, chunk_id)` with the original preserved in
-  the payload. This is what makes re-ingestion idempotent: a re-run overwrites
-  the same point instead of appending a duplicate.
-- **Withdrawn arXiv versions are skipped, and a 404 is never retried.** The
-  arXiv API returns a paper's latest version, and arXiv serves no PDF for a
-  withdrawn one. The withdrawal is detected from the submission comment that
-  arrives with the metadata, so no request is issued at all.
+```bash
+cp .env.example .env    # fill in GROQ_API_KEY, HF_TOKEN, HF_INDEX_REPO
+make setup && make up && make demo
+```
 
-### Graph and state
+`make demo` restores the latest accepted index snapshot into the compose Qdrant and prints the
+UI address (`http://127.0.0.1:8000/`). Reading the private snapshot repo requires `HF_TOKEN`
+with read access. To build the index from scratch instead:
 
-| Node | Model | Responsibility |
-|---|---|---|
-| `route_query` | 8B | Classify query type; set `query_type` |
-| `retrieve` | — | Dense and sparse retrieval, RRF fusion |
-| `grade_documents` | cross-encoder | Score each doc; filter below 0.5 |
-| `web_search` | Tavily | CRAG fallback when all docs are filtered |
-| `generate` | 70B | Answer from `graded_docs` or the web result |
-| `check_hallucination` | 8B | Detect claims not grounded in the context |
-| `check_answer` | 8B | Verify the answer resolves the original query |
-| `rewrite_query` | 8B | Reformulate the query; increment `iteration_count` |
+```bash
+make backfill    # fetch, download, and parse the 199 seed papers
+make index       # build meridian_v1 and point meridian_live at it
+make ingest      # one gated incremental batch
+```
 
-| After node | Condition | Route to |
-|---|---|---|
-| `grade_documents` | no doc scores >= 0.5 | `web_search` |
-| `grade_documents` | at least one doc passes | `generate` |
-| `check_hallucination` | ungrounded AND `iteration_count` < 3 | `generate` |
-| `check_hallucination` | grounded | `check_answer` |
-| `check_hallucination` | `iteration_count` >= 3 | END |
-| `check_answer` | on target | END |
-| `check_answer` | off target AND `iteration_count` < 3 | `rewrite_query` |
-| `check_answer` | `iteration_count` >= 3 | END |
-| `rewrite_query` | always | `retrieve` |
+## How it works
 
-- **Iteration cap of 3.** The counter increments in two places,
-  `rewrite_query` and `check_hallucination` (the latter only when it reports an
-  ungrounded answer), because each recovery loop needs its own counting site. A
-  fresh query resets the counter, so a reused `thread_id` does not inherit a
-  saturated count and lose access to recovery.
-- **SqliteSaver checkpointing.** Graph state persists across API restarts, so a
-  long multi-turn session can resume mid-graph. The saver is built from an
-  explicit `sqlite3.connect` rather than `SqliteSaver.from_conn_string`, which
-  is a context manager in current LangGraph versions and does not fit a
-  long-lived compiled graph.
-- **Cross-session memory is a separate database.** `sessions.db` holds
-  conversation turns keyed by `session_id`, distinct from the checkpointer:
-  `SqliteSaver` resumes mid-graph state within a process, while session memory
-  recalls prior turns across restarts and is prepended to the generation prompt.
-- **CRAG web fallback reported honestly.** When every document is filtered,
-  Tavily supplies the context and the response `source` is reported as `web`,
-  not `corpus`. A web-retrieved answer is never presented as though it came
-  from the paper corpus.
+### Corpus and ingestion
+`configs/corpus.yaml` records the exact query that produced the 199-paper corpus:
+`cs.CL`, `cs.LG`, or `cs.AI`, six abstract terms, submissions from 2022 through 2024, sorted
+by relevance. The backfill reproduces the corpus by versioned id. Daily increments query by
+submission date from the last accepted watermark, oldest first and capped per run. A three-day
+lookback absorbs arXiv's announcement delay, and newer versions of corpus papers replace older
+ones after the gate accepts the batch (`docs/runbook.md`).
 
-### Evaluation and observability
+### Index and retrieval
+Each index version is one collection with a dense vector (`BAAI/bge-small-en-v1.5`, cosine)
+and a sparse BM25 vector (`Qdrant/bm25` with Qdrant's IDF modifier). A query runs both as
+prefetches of 50 in one `query_points` call, fuses them with RRF (k=60), and reranks the fused
+top 30 with `BAAI/bge-reranker-base` to the final 6. Payloads keep the chunk's character span
+in the parsed paper, which keeps labeled evaluation spans valid across chunker changes.
 
-- **RAGAS against actually retrieved chunks.** Metrics are computed against the
-  exact contexts the graph used. Scoring against the full corpus would measure
-  whether an answer is consistent with some document that exists, not whether
-  it is grounded in what was retrieved.
-- **Context precision is measured without a reference.** The question set ships
-  without gold answers, so `LLMContextPrecisionWithoutReference` judges
-  retrieved context against the generated answer rather than a known correct
-  one. Supplying `reference` values in `question_set.py` enables the
-  reference-based metrics.
-- **Langfuse per-node tracing.** Nodes are wrapped with `@observe` so each
-  emits its own span with timing and token counts. The LangChain callback
-  integration is deliberately not used because it does not surface node-level
-  detail, which is the data that makes retrieval latency tractable to optimise.
-- **Production scoring reads traces, it does not replay them.**
-  `scripts/score_production_traces.py` extracts the query, graded context, and
-  generation from spans the `@observe`-wrapped nodes already emit, so it scores
-  what actually happened. It depends on Langfuse SDK attribute names, which have
-  moved across versions; verify them against the installed version first.
-- **Heavy ML imports are deferred.** `sentence-transformers`/`torch`, Docling,
-  and the transformers tokenizer are imported inside the functions that
-  construct their objects. Module import stays cheap, and the test suite imports
-  the full dependency graph and mocks the factories without loading
-  multi-gigabyte libraries.
+### Gates
+After a daily batch, R-fast (40 labeled queries) runs through the full pipeline. If recall@5
+drops more than 0.02 below the stored baseline, every point of the batch is deleted, the batch
+is recorded as rejected, and an alert is raised. A rebuild into `meridian_v{N+1}` compares
+R-full recall@5 and nDCG@10 and A-full faithfulness with the live version. The alias moves in
+one request only when no metric is worse by more than its tolerance.
 
-## Project layout
+### Agent
+The router answers, asks for clarification, or refuses out-of-scope requests by naming the
+corpus topic. Grading keeps chunks whose reranker score is at least 0.7 and drops those below
+0.2. Only the band in between goes to the 8B grader. With fewer than two supporting chunks,
+the agent rewrites the query up to twice, then falls back to web search if enabled, else
+declines. The generator cites short aliases that are resolved to chunk ids afterwards. The
+verifier drops citations outside the context, judges cited sentences with a different model,
+and removes unsupported sentences or regenerates once. Per-turn state is reset at the start of
+every turn; only messages and a pinned paper filter persist.
+
+### Serving
+`POST /v1/ask` streams tokens and the final cited answer as server-sent events.
+`POST /v1/search` returns ranked chunks. `/healthz`, `/readyz`, `/metrics`, and `/v1/index`
+report health, readiness, Prometheus metrics, and the live index. Answers are cached by
+normalized question and index revision, so an index change never serves a stale answer.
+
+### Domain-adapted embedder
+Ten thousand synthetic query and chunk pairs from papers in no evaluation set train the dense
+model with `MultipleNegativesRankingLoss` and mined hard negatives. The adapted model goes
+live only through the rebuild gate.
+
+### Scheduled releases
+A daily GitHub Actions job restores the latest accepted snapshot, ingests new papers, runs the
+R-fast gate, and publishes a new snapshot to the private dataset repo only when the gate
+passes. Otherwise it opens an issue. Each run appends to `results/ingest_runs.jsonl`.
+
+## Evaluation
+
+Datasets are committed under `eval/` and described in `eval/README.md`: the retrieval set R
+(150 synthetic questions with span labels, 30 reviewed by hand, R-fast is 40 of them), the
+answer set A (75 questions with reference answers, A-fast is 20), and the out-of-scope set O
+(25 questions). The judge model is never the generator model.
+
+### E1: retrieval quality and stage latency (`make eval-retrieval`)
+<!-- results:e1:start -->
+Not yet measured. Run `make eval-retrieval` to produce `results/e1_retrieval.json`.
+<!-- results:e1:end -->
+
+### E2: answer quality (`make eval-answers`)
+<!-- results:e2:start -->
+Not yet measured. Run `make eval-answers` to produce `results/e2_answers.json`.
+<!-- results:e2:end -->
+
+### E3: serving latency, cost, and caches (`make eval-serving`)
+<!-- results:e3:start -->
+Not yet measured. Run `make eval-serving` to produce `results/e3_serving.json`.
+<!-- results:e3:end -->
+
+### E4: daily ingestion (`make eval-ingest`)
+<!-- results:e4:start -->
+Not yet measured. Run `make eval-ingest` to produce `results/e4_ingest.json`.
+<!-- results:e4:end -->
+
+### E5: domain-adapted embedder (`make eval-embedder`)
+<!-- results:e5:start -->
+Not yet measured. Run `make eval-embedder` to produce `results/e5_embedder.json`.
+<!-- results:e5:end -->
+
+### E6: public demo (`make eval-demo`)
+<!-- results:e6:start -->
+Not yet measured. Run `make eval-demo` to produce `results/e6_demo.json`.
+<!-- results:e6:end -->
+
+## Design decisions
+
+Full context and alternatives are in [DECISIONS.md](DECISIONS.md).
+
+- D-001: BM25 moves into Qdrant, so one versioned collection holds both retrieval sides.
+- D-002: Chunk payloads carry character spans, so labels survive chunker changes.
+- D-003: Increments advance an oldest-first watermark with a lookback and a version check.
+- D-004: The backfill reproduces the recorded corpus by versioned id.
+- D-005: Training pairs come only from papers outside every evaluation set.
+- D-006: Releases restore into a fresh copy, and caches key on the index revision.
+- D-007: The demo Space runs the Qdrant server binary next to the API.
+
+## Limitations
+
+- **Synthetic retrieval labels.** R's questions are written by an LLM from single chunks, so
+  they favor lexical overlap with their source. The overlap filter and the manual review of 30
+  items reduce this bias toward BM25 without removing it.
+- **Broad daily query.** The recorded topic query matched 398 submissions on a single day
+  (2026-10-08). At 40 papers per run, increments fall further behind real time each day
+  unless the optional narrowing clause in `configs/corpus.yaml` is set.
+- **Corpus gap.** Papers submitted between the backfill's 2024-12-31 ceiling and the backfill
+  date are not in the corpus (D-004).
+- **Baseline drift.** As SPEC S3.6 requires, the R-fast baseline is updated after every
+  accepted batch. Small regressions within 0.02 can therefore accumulate over many batches.
+- **Uncited sentences are removed.** The verifier treats an uncited sentence as unsupported,
+  which can drop connective sentences; E2 reports the unsupported-sentence rate.
+- **Score bands are not tuned.** The accept and reject reranker scores (0.7 and 0.2) are set a
+  priori.
+- **Shared inference provider.** The generator and the judge are different models but both run
+  on Groq.
+- **Single topic.** Results describe this corpus and question set only.
+
+## Repository layout
 
 ```
 src/meridian/
-  config.py            settings (pydantic-settings)
-  db.py                PostgreSQL metadata models and session factory
-  ingestion/           arXiv client, Docling parser, chunker, embedder, indexer, Prefect flows
-  retrieval/           dense, sparse (BM25), RRF fusion, cross-encoder reranker
-  graph/               state, chains, nodes, edges, compiled graph
-  memory/              cross-session conversation memory store
-  evaluation/          75-question set, RAGAS runner
-  api/                 FastAPI app, routes, schemas
-scripts/               ingest.py, evaluate.py, score_production_traces.py, deploy_space.py
-spaces/                Gradio demo app and Space card (staged, not deployed)
-tests/                 retrieval, node, edge, state reset, ingestion, session memory, API
-Dockerfile             image for the docker-compose `api` service
-docker-compose.yml     api, qdrant, and postgres services
+  ingest/      arxiv_client  pdf parsing  chunk  embed  index  manifest  build  pipeline  gate  scheduler  rebuild
+  retrieval/   hybrid  rerank  legacy (E1 baseline)  factory
+  agent/       state  nodes/  citations  build  prompts/  web
+  serving/     app  sse  cache  rate_limit  runtime  ui/
+  embedder/    build_pairs  mine_negatives  train  card  exclusion
+  release/     snapshot  publish  restore  runlog  watcher
+  eval/        build_retrieval_set  retrieval_eval  answer_eval  serving_eval  ingest_eval  embedder_eval  demo_eval
+  common/      settings  config  llm_client  metrics  logging  results
+configs/       one YAML file per concern, each with a version
+eval/          committed datasets R, A, O, and cache probes
+results/       committed results artifacts and the scheduled run log
+scripts/       review, references, load test, Space deploy, README rendering
+space/         Docker Space image and startup
+slurm/         GPU training job
+tests/         unit, integration (compose Qdrant), e2e (recorded LLM responses)
+docs/          architecture and ingestion runbook
 ```
-
-## Safety scope
-
-All automated file access is restricted to this project folder. Tooling
-operating on this repository must not read, write, or execute anything outside
-it.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
-
-The licence covers this source code only. It does not cover the arXiv papers
-the ingestion pipeline downloads: those remain under their respective authors'
-licences, and parsed paper text is deliberately not committed to this
-repository.
+MIT for the source code. The arXiv papers keep their authors' licenses; chunk text and PDFs
+are never committed, and index snapshots are published only to a private repository.

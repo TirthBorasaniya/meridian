@@ -188,6 +188,9 @@ class BatchRecord:
 
 def write_batch_record(context: IngestContext, record: BatchRecord) -> Path:
     """Write the record to the manifest and to `data/batches/{batch_id}.json`."""
+    from meridian.common.metrics import INGEST_BATCHES_TOTAL
+
+    INGEST_BATCHES_TOTAL.labels(decision=record.decision).inc()
     context.manifest.finish_batch(
         record.batch_id, record.decision, record.watermark, record.to_dict()
     )

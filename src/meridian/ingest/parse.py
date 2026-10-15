@@ -30,11 +30,11 @@ PICTURE_TEXT_PATTERN = re.compile(
 HTML_COMMENT_PATTERN = re.compile(r"<!--.*?-->", re.DOTALL)
 OMITTED_PICTURE_PATTERN = re.compile(r"^\*{0,2}==> picture .* <==\*{0,2}\s*$")
 MARKDOWN_HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
-NUMBER_ONLY_PATTERN = re.compile(r"^[\s\-–—]*\d+(?:[.,:/]\d+)*[\s\-–—]*$")
+NUMBER_ONLY_PATTERN = re.compile(r"^[\s\-\u2013\u2014]*\d+(?:[.,:/]\d+)*[\s\-\u2013\u2014]*$")
 INLINE_MARKUP_PATTERN = re.compile(r"(\*\*|__|`|</?u>|</?b>|</?i>|<br>|\*|_(?=\W)|(?<=\W)_)")
 HEADING_NUMBER_PREFIX = re.compile(r"^(?:[0-9]+(?:\.[0-9]+)*\.?|[IVXLC]+\.|[A-Z]\.?)\s+")
 FALLBACK_HEADING_PATTERN = re.compile(
-    r"^(?:\d+(?:\.\d+){0,2}\.?)\s+[A-Z][A-Za-z0-9 ,:;()/&'\-–]{2,80}$"
+    r"^(?:\d+(?:\.\d+){0,2}\.?)\s+[A-Z][A-Za-z0-9 ,:;()/&'\-\u2013]{2,80}$"
 )
 FALLBACK_NAMED_HEADINGS = {"abstract", "introduction", "conclusion", "conclusions"}
 MULTI_BLANK_PATTERN = re.compile(r"\n{3,}")

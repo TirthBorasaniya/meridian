@@ -40,3 +40,6 @@ jobs:
 
       - name: Unit tests
         run: uv run --frozen pytest
+
+      - name: README tables match results
+        run: uv run --frozen python scripts/render_results.py --check
