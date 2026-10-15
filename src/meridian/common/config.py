@@ -106,6 +106,12 @@ class IncrementConfig(BaseModel):
     sort_by: Literal["relevance", "submittedDate", "lastUpdatedDate"]
     sort_order: Literal["ascending", "descending"]
     max_papers_per_run: int = Field(gt=0)
+    # re-read this many days before the watermark, because arXiv announces with a delay
+    lookback_days: int = Field(ge=0)
+    # optional clause ANDed into the increment query to narrow a broad topic
+    extra_clause: str | None = None
+    # re-check corpus papers for newer versions on every increment
+    o_check_versions: bool = True
 
 
 class ArxivQueryConfig(BaseModel):
@@ -336,6 +342,18 @@ class GateConfig(VersionedConfig):
     answer_set_path: str
 
 
+# ============= Scheduler =============
+
+
+class SchedulerConfig(VersionedConfig):
+    """configs/scheduler.yaml."""
+
+    timezone: str
+    daily_time: str = Field(pattern=r"^\d{2}:\d{2}$")
+    misfire_grace_seconds: int = Field(gt=0)
+    deadline_minutes: float = Field(gt=0)
+
+
 # ============= Cached accessors =============
 
 
@@ -363,7 +381,19 @@ def get_gate_config() -> GateConfig:
     return load_config(GateConfig, config_dir() / "gate.yaml")
 
 
+@cache
+def get_scheduler_config() -> SchedulerConfig:
+    """Return configs/scheduler.yaml."""
+    return load_config(SchedulerConfig, config_dir() / "scheduler.yaml")
+
+
 def clear_config_caches() -> None:
     """Clear every cached config accessor, so tests can swap config files."""
-    for accessor in (get_corpus_config, get_index_config, get_models_config, get_gate_config):
+    for accessor in (
+        get_corpus_config,
+        get_index_config,
+        get_models_config,
+        get_gate_config,
+        get_scheduler_config,
+    ):
         accessor.cache_clear()

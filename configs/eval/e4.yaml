@@ -1,0 +1,12 @@
+# E4: seven simulated daily batches replayed from historical dates, plus every recorded
+# scheduled CI run (SPEC S6.2).
+version: 1
+
+start_date: "2024-11-04"
+days: 7
+max_papers_per_day: 40
+simulation_collection: "meridian_e4_sim"
+work_dir: ".tmp/e4"
+run_log_path: "results/ingest_runs.jsonl"
+o_drop_after: true
+output: "e4_ingest"

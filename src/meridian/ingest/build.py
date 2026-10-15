@@ -19,7 +19,7 @@ from meridian.common.config import (
     load_config,
 )
 from meridian.ingest import index as index_module
-from meridian.ingest.chunk import build_payload, chunk_paper, load_tokenizer
+from meridian.ingest.chunk import TokenizerLike, build_payload, chunk_paper, load_tokenizer
 from meridian.ingest.embed import DenseEncoder, SparseEncoder, get_dense_encoder, get_sparse_encoder
 from meridian.ingest.manifest import STATUS_INDEXED, Manifest, PaperRow
 from meridian.ingest.parse import ParsedPaper, ParseError, parse_and_cache
@@ -42,6 +42,8 @@ class PaperIndexer:
         index_config: IndexConfig,
         dense_encoder: DenseEncoder | None = None,
         sparse_encoder: SparseEncoder | None = None,
+        tokenizer: TokenizerLike | None = None,
+        max_tokens: int | None = None,
     ) -> None:
         self.client = client
         self.collection = collection
@@ -49,7 +51,9 @@ class PaperIndexer:
         self.index_config = index_config
         self.dense_encoder = dense_encoder or get_dense_encoder(index_config.dense)
         self.sparse_encoder = sparse_encoder or get_sparse_encoder(index_config.sparse)
-        self.tokenizer, self.max_tokens = load_tokenizer(index_config.dense.model)
+        if tokenizer is None or max_tokens is None:
+            tokenizer, max_tokens = load_tokenizer(index_config.dense.model)
+        self.tokenizer, self.max_tokens = tokenizer, max_tokens
 
     def payloads_for(self, meta: PaperMeta, paper: ParsedPaper, ingest_batch_id: str) -> list[dict]:
         """Return the validated payloads of one paper's chunks."""

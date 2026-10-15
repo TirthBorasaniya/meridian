@@ -1,0 +1,8 @@
+# Daily ingestion schedule for the scheduler container (APScheduler).
+version: 1
+
+timezone: "UTC"
+daily_time: "06:30"
+# a run that starts later than this after its scheduled time is skipped, not stacked
+misfire_grace_seconds: 3600
+deadline_minutes: 120

@@ -377,14 +377,15 @@ class Manifest:
         if kind is not None:
             query += " WHERE kind = ?"
             parameter_list = (kind,)
-        row_list = self._connection.execute(query + " ORDER BY started_at", parameter_list)
+        # rowid breaks ties between batches started within the same second
+        row_list = self._connection.execute(query + " ORDER BY started_at, rowid", parameter_list)
         return [self.get_batch(row["batch_id"]) for row in row_list.fetchall()]  # type: ignore[misc]
 
     def last_success_watermark(self) -> str | None:
         """Return the watermark of the most recent accepted batch, or None."""
         row = self._connection.execute(
             "SELECT watermark FROM batches WHERE decision = ? AND watermark != '' "
-            "ORDER BY finished_at DESC, started_at DESC LIMIT 1",
+            "ORDER BY finished_at DESC, rowid DESC LIMIT 1",
             (DECISION_ACCEPTED,),
         ).fetchone()
         return row["watermark"] if row else None

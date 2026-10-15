@@ -34,6 +34,12 @@ arxiv:
     # oldest first, so a capped run advances the watermark without skipping papers
     sort_order: "ascending"
     max_papers_per_run: 40
+    lookback_days: 3
+    # The recorded query matched 398 papers submitted on 2026-10-08 alone, so unnarrowed
+    # increments exceed max_papers_per_run every day. A narrowing clause such as
+    # 'abs:"chain-of-thought" OR abs:"calibration"' is a scope decision left to the maintainer.
+    extra_clause: null
+    o_check_versions: true
   page_size: 100
 
 throttle:
