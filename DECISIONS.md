@@ -151,6 +151,9 @@ Consequences:
   before E3, and `prices_checked_on` stays null until then.
 - No reference to `qwen/qwen3.8-27b` existed in the repository, so no replacement was needed.
 
+Amendment, 2026-10-15: the judge is now `qwen/qwen3.8-27b` (D-010), and prices are no longer
+estimated. The judge statements above describe the decision as first made.
+
 ## D-009: Daily additions are narrowed to LLM reasoning, calibration, and chain-of-thought
 Status: accepted (2026-10-15)
 Context: the recorded topic query matched about 305 submissions a day (9,165 over the 30 days
@@ -174,21 +177,24 @@ evaluation-methodology papers that mention none of the three terms, are no longe
 corpus started broader than it grows. Papers added before this decision stay, and the R-fast
 gate measures only those, so it will not detect the shift.
 
-## D-010: Groq prices come from the models page, and the Qwen judge id is unverified
+## D-010: Groq prices come from the models page, and the judge is qwen/qwen3.8-27b
 Status: accepted (2026-10-15)
 Context: remembered and carried-over prices were not acceptable for E3's cost numbers.
 `https://groq.com/pricing` loads but shows no prices. `https://console.groq.com/docs/models`,
-retrieved 2026-10-15, lists them.
-Decision: `configs/models.yaml` records `openai/gpt-oss-20b` at $0.075 input and $0.30 output
-per million tokens, and `openai/gpt-oss-120b` at $0.15 input and $0.60 output, with the source
-URL and retrieval date. The earlier remembered 120b output price of $0.75 was wrong. That page
-does not list `qwen/qwen3.6-27b`; its only Qwen entry is the Preview model `qwen/qwen3.8-27b`
-at $0.80 input and $4.00 output. The judge is configured as `qwen/qwen3.6-27b` (D-008), so its
-price is null, and cost conversion raises an error naming the unpriced model instead of
-estimating. E3 cannot report cost until the judge is priced.
-Alternatives: keep an estimated price (rejected: not a measured value); switch the judge to
-`qwen/qwen3.8-27b` (not done: the judge choice is the maintainer's, and D-008 records the
-instruction to replace references to that model).
-Consequences: before E2, E3, or the rebuild gate run, the judge model id must be confirmed with
-the Groq `/openai/v1/models` endpoint, because the models page does not list it. A different
-judge id needs only `configs/models.yaml` and a price.
+retrieved 2026-10-15, lists them. That page does not list `qwen/qwen3.6-27b`, the judge chosen
+in D-008. Its only Qwen entry is the Preview model `qwen/qwen3.8-27b`.
+Decision: the judge is `qwen/qwen3.8-27b`, replacing `qwen/qwen3.6-27b` everywhere. It is a
+Groq Preview model: Preview models are intended for evaluation and can be discontinued at
+short notice. `configs/models.yaml` records the prices per million tokens as retrieved from
+the page named in `prices_source_url` on 2026-10-15: `openai/gpt-oss-20b` $0.075 input and
+$0.30 output, `openai/gpt-oss-120b` $0.15 input and $0.60 output, and `qwen/qwen3.8-27b`
+$0.80 input and $4.00 output. The earlier remembered 120b output price of $0.75 was wrong. A
+model without a published price is null, and cost conversion raises an error naming it
+instead of estimating.
+Alternatives: keep `qwen/qwen3.6-27b` (rejected: not listed on the models page, so its
+availability and price were unverified); `openai/gpt-oss-120b` as judge (rejected: it is the
+generator, and SPEC S4.3 requires a different judge).
+Consequences: judge calls are the most expensive per token of the three models, and the judge
+runs on every cited sentence in evaluation, so E2 and E3 costs will be dominated by it. If the
+judge is withdrawn, `configs/models.yaml` needs another non-generator model and its price.
+Judgments cached under another model are not reused, because the cache key includes the model.

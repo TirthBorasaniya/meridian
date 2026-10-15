@@ -32,11 +32,11 @@ roles:
     temperature: 0.0
     max_tokens: 2048
     reasoning_effort: "low"
-  # the judge must differ from the generator. qwen/qwen3.6-27b is a Groq Preview model:
+  # the judge must differ from the generator. qwen/qwen3.8-27b is a Groq Preview model:
   # Preview models are for evaluation, can change without notice, and can be withdrawn on
   # short notice. If it is withdrawn, pick another non-generator model (DECISIONS.md D-008).
   judge:
-    model: "qwen/qwen3.6-27b"
+    model: "qwen/qwen3.8-27b"
     temperature: 0.0
     max_tokens: 4096
   question_writer:
@@ -53,11 +53,11 @@ roles:
 # USD per million tokens, used only to convert measured token counts into cost in E3.
 # Retrieved from the page named in prices_source_url on prices_checked_on. A model without a
 # published price on that page is null, and cost conversion refuses to run until it is priced.
+# All three role models are listed with prices on that page.
 prices_usd_per_million_tokens:
   "openai/gpt-oss-20b": { input: 0.075, output: 0.30 }
   "openai/gpt-oss-120b": { input: 0.15, output: 0.60 }
-  # not listed on the models page when retrieved (it lists qwen/qwen3.8-27b instead)
-  "qwen/qwen3.6-27b": null
+  "qwen/qwen3.8-27b": { input: 0.80, output: 4.00 }
 prices_source_url: "https://console.groq.com/docs/models"
 prices_source: "Groq models page; https://groq.com/pricing shows no prices"
 prices_checked_on: 2026-10-15

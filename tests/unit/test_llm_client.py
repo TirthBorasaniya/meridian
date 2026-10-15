@@ -135,15 +135,16 @@ def test_inline_reasoning_is_stripped_before_caching():
     assert client.chat("judge", MESSAGES).text == '{"supported": true}'
 
 
-def test_cost_refuses_an_unpriced_model():
+def test_cost_uses_recorded_prices_and_refuses_an_unpriced_model(monkeypatch):
     models_config = get_models_config()
     transport = ScriptedTransport(lambda *_: "x")
     client = LLMClient(models_config, transport, MemoryResponseCache())
-    with usage_scope() as meter:
-        client.chat("generator", MESSAGES)
-    assert meter.cost_usd(models_config) > 0
+    judge_model = models_config.role("judge").model
+    price = models_config.prices_usd_per_million_tokens[judge_model]
+    assert (price.input, price.output) == (0.80, 4.00)
     with usage_scope() as meter:
         client.chat("judge", MESSAGES)
-    assert models_config.prices_usd_per_million_tokens[models_config.role("judge").model] is None
+    assert meter.cost_usd(models_config) == pytest.approx((100 * 0.80 + 20 * 4.00) / 1e6)
+    monkeypatch.setitem(models_config.prices_usd_per_million_tokens, judge_model, None)
     with pytest.raises(RuntimeError, match="no published price"):
         meter.cost_usd(models_config)

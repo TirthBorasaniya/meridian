@@ -10,16 +10,7 @@ from tests.unit.test_serving import _runtime
 pytestmark = pytest.mark.unit
 
 
-def test_answer_run_and_cache_hits(monkeypatch):
-    from meridian.common.config import PriceConfig, get_models_config
-
-    # the judge is unpriced in configs; a test-only price lets the cost arithmetic run
-    judge_model = get_models_config().role("judge").model
-    monkeypatch.setitem(
-        get_models_config().prices_usd_per_million_tokens,
-        judge_model,
-        PriceConfig(input=1.0, output=1.0),
-    )
+def test_answer_run_and_cache_hits():
     runtime = _runtime()
     question_list = ["What is CoT?", "How is calibration error computed?"]
     summary = serving_eval.answer_run(runtime, question_list)
