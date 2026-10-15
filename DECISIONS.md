@@ -35,3 +35,37 @@ Alternatives: label by chunk id (rejected: ids change with the chunker); fuzzy t
 at evaluation time (rejected: ambiguous on repeated passages).
 Consequences: any change to the parser's output must bump `parser.parser_version` in
 `configs/index.yaml`, and labels must be rebuilt for that parser version.
+
+## D-003: Increments advance an oldest-first watermark with a lookback and a version check
+Status: accepted (2026-10-14)
+Context: SPEC S3.6 runs `meridian ingest --since last_success` daily. arXiv announces papers
+a day or more after submission, the recorded topic query matches several hundred submissions
+a day, and SPEC S3.2 requires a newer version to replace the older one's points.
+Decision: an increment queries `submittedDate` from the last accepted watermark minus
+`lookback_days` (3), sorted ascending, and processes at most `max_papers_per_run` new
+versions. The watermark advances to the last processed submission, or to the window end when
+the window was exhausted; it does not move on a rejected or aborted batch. Before new
+submissions, the latest versions of corpus papers are read through `id_list`, and newer
+versions are ingested first. Old-version points are deleted only after the gate accepts the
+batch, so a rejected batch leaves the previous version intact. Papers referenced by R, A, or
+O stay at the version their labels refer to.
+Alternatives: watermark at the run time (rejected: loses papers announced late);
+`lastUpdatedDate` queries for revisions (rejected: returns every revised paper in three
+categories); re-versioning evaluation papers (rejected: their span labels would stop
+matching and every gate would fail).
+Consequences: re-reading the lookback window costs a few API pages per run, which the manifest
+turns into skips. With an unnarrowed query, the capped increments fall behind real time; the
+optional `increment.extra_clause` narrows the query, and choosing it is a scope decision.
+
+## D-004: The backfill reproduces the recorded corpus by versioned id
+Status: accepted (2026-10-14)
+Context: arXiv relevance ranking drifts, so re-running the relevance query would not return
+the 199 papers that the existing evaluation questions were written against.
+Decision: `meridian backfill --source seed-ids` fetches the 199 versioned ids in
+`configs/corpus_seed_ids.txt` and reuses previously downloaded PDFs when they are present. The
+backfill batch's watermark is the run time, so the first increment starts at the backfill
+date rather than at the 2024-12-31 query ceiling.
+Alternatives: re-run the query (kept as `--source query`, not the default); start increments
+at the ceiling (rejected: it would pull almost two years of papers into one run).
+Consequences: papers submitted between the query ceiling and the backfill date are not in the
+corpus. The README states this.
