@@ -190,7 +190,7 @@ class ChunkerConfig(BaseModel):
 class DenseConfig(BaseModel):
     """Dense embedding model options."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     model: str
     query_prefix: str = ""
@@ -201,7 +201,7 @@ class DenseConfig(BaseModel):
 class SparseConfig(BaseModel):
     """Sparse embedding model options."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     model: str
 
@@ -209,7 +209,7 @@ class SparseConfig(BaseModel):
 class RerankerConfig(BaseModel):
     """Cross-encoder options."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     model: str
     batch_size: int = Field(gt=0)
