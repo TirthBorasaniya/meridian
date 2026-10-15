@@ -1,0 +1,42 @@
+# Index construction: parser, chunker, dense and sparse models, retrieval depths.
+# Any change to parser, chunker, dense, or sparse requires a rebuild into meridian_v{N+1}.
+version: 1
+
+collection_prefix: "meridian_v"
+alias: "meridian_live"
+# previous versions kept after an alias switch, for rollback
+keep_previous_versions: 1
+upsert_batch_size: 128
+
+parser:
+  # bump when parse.py changes its output; labeled spans in eval/ refer to this version
+  parser_version: 1
+  references_headings: ["references", "bibliography", "reference", "literature cited"]
+  repeated_line_page_fraction: 0.5
+  repeated_line_edge_lines: 3
+
+chunker:
+  chunk_tokens: 400
+  overlap_tokens: 60
+  # sections shorter than this are merged into the following section
+  min_section_tokens: 40
+
+dense:
+  model: "BAAI/bge-small-en-v1.5"
+  query_prefix: "Represent this sentence for searching relevant passages: "
+  document_prefix: ""
+  batch_size: 32
+
+sparse:
+  model: "Qdrant/bm25"
+
+reranker:
+  model: "BAAI/bge-reranker-base"
+  batch_size: 16
+
+retrieval:
+  prefetch_limit: 50
+  fusion_limit: 30
+  rerank_depth: 30
+  final_k: 6
+  rrf_k: 60

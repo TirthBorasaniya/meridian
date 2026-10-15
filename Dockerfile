@@ -1,29 +1,28 @@
-# Dockerfile for the Meridian API service.
-# Required by the docker-compose `api` service build.
-FROM python:3.11-slim
+# Image for the api and scheduler services of the local compose stack.
+FROM python:3.11.9-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PYTHONHASHSEED=0 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    HF_HOME=/app/.cache/huggingface \
+    FASTEMBED_CACHE_PATH=/app/.cache/fastembed \
+    PATH=/opt/venv/bin:$PATH
+
+COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-# System libraries needed by psycopg, common ML wheels, and OpenCV
-# (docling's table-structure model imports cv2, which dlopens libGL/libglib
-# at runtime even in headless mode).
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        build-essential libpq-dev libgl1 libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
+# dependencies first for layer caching; the project itself is installed after the source copy
+COPY pyproject.toml uv.lock README.md LICENSE ./
+RUN uv sync --frozen --no-dev --no-install-project
 
-# Install dependencies first for better layer caching. requirements.txt ends
-# with `-e .`, so the package metadata must be present at install time.
-COPY requirements.txt pyproject.toml README.md ./
 COPY src ./src
-RUN pip install --upgrade pip && pip install -r requirements.txt
-
-# Copy the remainder of the project (scripts, configs).
-COPY . .
+COPY configs ./configs
+COPY eval ./eval
+RUN uv sync --frozen --no-dev
 
 EXPOSE 8000
 
-CMD ["uvicorn", "src.meridian.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["meridian", "serve", "--host", "0.0.0.0", "--port", "8000"]

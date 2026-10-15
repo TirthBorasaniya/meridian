@@ -1,0 +1,26 @@
+# Hooks run the pinned tool versions from the uv environment where possible.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: uv run --frozen ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff-format
+        entry: uv run --frozen ruff format
+        language: system
+        types: [python]
+      - id: detect-secrets
+        name: detect-secrets
+        entry: uv run --frozen detect-secrets-hook --baseline .secrets.baseline
+        language: system
+        exclude: ^uv\.lock$

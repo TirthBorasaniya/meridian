@@ -1,0 +1,10 @@
+# Regression gates for daily batches (R-fast) and rebuilds (R-full and A-full).
+version: 1
+
+max_regression: 0.02
+faithfulness_max_regression: 0.02
+fast_metric: "recall_at_5"
+full_metrics: ["recall_at_5", "ndcg_at_10"]
+baseline_path: "data/gate_baseline.json"
+retrieval_set_path: "eval/retrieval_set.jsonl"
+answer_set_path: "eval/answer_set.jsonl"

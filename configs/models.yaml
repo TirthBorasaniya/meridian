@@ -1,0 +1,51 @@
+# LLM roles, models, and prices. The judge never equals the generator, and no Llama model
+# writes training data (the Llama 3.3 license would constrain the published model's name).
+version: 1
+
+provider: "groq"
+request_timeout_seconds: 120.0
+max_retries: 6
+backoff_base_seconds: 2.0
+backoff_max_seconds: 60.0
+
+roles:
+  router:
+    model: "llama-3.1-8b-instant"
+    temperature: 0.0
+    max_tokens: 200
+  rewriter:
+    model: "llama-3.1-8b-instant"
+    temperature: 0.0
+    max_tokens: 120
+  grader:
+    model: "llama-3.1-8b-instant"
+    temperature: 0.0
+    max_tokens: 60
+  generator:
+    model: "llama-3.3-70b-versatile"
+    temperature: 0.0
+    max_tokens: 900
+  judge:
+    model: "openai/gpt-oss-120b"
+    temperature: 0.0
+    max_tokens: 2048
+    reasoning_effort: "low"
+  question_writer:
+    model: "openai/gpt-oss-120b"
+    temperature: 0.0
+    max_tokens: 1024
+    reasoning_effort: "low"
+  pair_writer:
+    model: "openai/gpt-oss-120b"
+    temperature: 0.7
+    max_tokens: 1024
+    reasoning_effort: "low"
+
+# USD per million tokens. Used only to convert measured token counts into cost in E3.
+# Values must be confirmed against the provider's published pricing before E3 is run.
+prices_usd_per_million_tokens:
+  "llama-3.1-8b-instant": { input: 0.05, output: 0.08 }
+  "llama-3.3-70b-versatile": { input: 0.59, output: 0.79 }
+  "openai/gpt-oss-120b": { input: 0.15, output: 0.75 }
+prices_source: "unconfirmed; check https://groq.com/pricing and update prices_checked_on"
+prices_checked_on: null

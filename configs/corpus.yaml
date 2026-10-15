@@ -1,0 +1,51 @@
+# Corpus scope: the arXiv query, date floor, sort orders, and fetch throttle.
+version: 1
+
+topic_name: "LLM reasoning and evaluation"
+topic_description: >-
+  arXiv papers on chain-of-thought prompting, reasoning benchmarks, evaluation methodology,
+  reasoning failure modes, and calibration of large language models.
+
+arxiv:
+  api_url: "https://export.arxiv.org/api/query"
+  categories: ["cs.CL", "cs.LG", "cs.AI"]
+  abstract_terms:
+    - "large language model"
+    - "chain-of-thought"
+    - "reasoning"
+    - "evaluation"
+    - "benchmark"
+    - "calibration"
+  # The 199-paper corpus was fetched with exactly this query string. The builder in
+  # meridian.ingest.arxiv_client reproduces it, and a unit test asserts the match.
+  recorded_backfill_query: >-
+    (cat:cs.CL OR cat:cs.LG OR cat:cs.AI) AND (abs:"large language model" OR
+    abs:"chain-of-thought" OR abs:"reasoning" OR abs:"evaluation" OR abs:"benchmark" OR
+    abs:"calibration") AND submittedDate:[202201010000 TO 202412312359]
+  date_floor: "2022-01-01"
+  backfill:
+    date_ceiling: "2024-12-31"
+    sort_by: "relevance"
+    sort_order: "descending"
+    max_results: 200
+    seed_ids_path: "configs/corpus_seed_ids.txt"
+  increment:
+    sort_by: "submittedDate"
+    # oldest first, so a capped run advances the watermark without skipping papers
+    sort_order: "ascending"
+    max_papers_per_run: 40
+  page_size: 100
+
+throttle:
+  min_interval_seconds: 3.0
+  jitter_seconds: 0.5
+  max_retries: 5
+  backoff_base_seconds: 6.0
+  backoff_max_seconds: 120.0
+  request_timeout_seconds: 60.0
+  user_agent: "meridian-research-index/0.2 (+https://github.com/TirthBorasaniya/meridian)"
+
+paths:
+  pdf_dir: "data/pdfs"
+  parsed_dir: "data/parsed"
+  manifest: "data/manifest.sqlite"

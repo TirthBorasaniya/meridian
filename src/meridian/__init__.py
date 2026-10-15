@@ -1,4 +1,4 @@
-"""Meridian: an agentic retrieval-augmented generation system over an arXiv
-corpus of LLM reasoning and evaluation papers."""
+"""Meridian: a research assistant and retrieval service over a maintained, versioned corpus of
+arXiv papers, answering with sentence-level citations."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
