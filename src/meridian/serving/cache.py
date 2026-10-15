@@ -119,7 +119,7 @@ def normalize_question(question: str) -> str:
     return TRAILING_PUNCTUATION.sub("", " ".join(question.lower().split()))
 
 
-def answer_cache_key(question: str, o_session_independent: bool, index_version: int) -> str:
+def answer_cache_key(question: str, o_session_independent: bool, index_version: int | str) -> str:
     """
     Return the answer cache key.
 
@@ -129,8 +129,9 @@ def answer_cache_key(question: str, o_session_independent: bool, index_version: 
         The user's question.
     o_session_independent : bool
         True when the answer does not depend on earlier turns of a session.
-    index_version : int
-        Live index version; a new version yields new keys, so stale answers are never served.
+    index_version : int or str
+        Live index revision (version plus last ingest); any change yields new keys, so an
+        answer is never served from an index it was not generated on.
 
     Returns
     -------
@@ -148,7 +149,9 @@ class AnswerCache:
         self._store = store
         self._ttl_seconds = ttl_seconds
 
-    def get(self, question: str, o_session_independent: bool, index_version: int) -> dict | None:
+    def get(
+        self, question: str, o_session_independent: bool, index_version: int | str
+    ) -> dict | None:
         """Return a cached answer payload."""
         from meridian.common.metrics import record_cache
 
@@ -157,7 +160,7 @@ class AnswerCache:
         return json.loads(raw) if raw else None
 
     def put(
-        self, question: str, o_session_independent: bool, index_version: int, payload: dict
+        self, question: str, o_session_independent: bool, index_version: int | str, payload: dict
     ) -> None:
         """Store an answer payload."""
         self._store.set(
@@ -194,7 +197,7 @@ class SemanticAnswerCache:
             redis_url=redis_url,
         )
 
-    def lookup(self, question: str, index_version: int) -> dict[str, Any] | None:
+    def lookup(self, question: str, index_version: int | str) -> dict[str, Any] | None:
         """Return the closest cached answer within the threshold for this index version."""
         from redisvl.query.filter import Tag
 
@@ -216,7 +219,7 @@ class SemanticAnswerCache:
         }
         return payload
 
-    def store(self, question: str, index_version: int, payload: dict) -> None:
+    def store(self, question: str, index_version: int | str, payload: dict) -> None:
         """Store an answer under this index version."""
         self._cache.store(
             prompt=question,

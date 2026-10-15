@@ -54,10 +54,27 @@ def collection_name(prefix: str, version: int) -> str:
     return f"{prefix}{version}"
 
 
+RESTORE_SUFFIX_PATTERN = re.compile(r"_r\d{12}$")
+
+
 def parse_version(name: str, prefix: str) -> int | None:
-    """Return the version number in a collection name, or None for other collections."""
-    match = re.fullmatch(rf"{re.escape(prefix)}(\d+)", name)
+    """
+    Return the version number in a collection name, or None for other collections.
+
+    A restored copy `meridian_v3_r202610150630` has the version of `meridian_v3`.
+    """
+    match = re.fullmatch(rf"{re.escape(prefix)}(\d+)(?:_r\d{{12}})?", name)
     return int(match.group(1)) if match else None
+
+
+def base_collection_name(name: str) -> str:
+    """Strip a restore suffix: `meridian_v3_r202610150630` becomes `meridian_v3`."""
+    return RESTORE_SUFFIX_PATTERN.sub("", name)
+
+
+def restore_collection_name(name: str, moment) -> str:
+    """Return the name a snapshot of `name` is restored under at `moment`."""
+    return f"{base_collection_name(name)}_r{moment.strftime('%Y%m%d%H%M')}"
 
 
 def list_versions(client: QdrantClient, prefix: str) -> list[int]:

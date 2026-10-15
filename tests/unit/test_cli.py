@@ -13,6 +13,8 @@ def test_parser_accepts_every_registered_command():
         argv = list(command_path)
         if command_path == ("index", "switch"):
             argv.append("meridian_v2")
+        if command_path == ("release", "runlog"):
+            argv += ["--exit-code", "0", "--run-id", "1", "--started-utc", "2026-10-14T00:00:00Z"]
         args = parser.parse_args(argv)
         assert args.handler == handler
 

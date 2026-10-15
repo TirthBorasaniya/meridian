@@ -1,0 +1,11 @@
+# Versioned index snapshots on the private Hugging Face dataset repo (SPEC S3.9).
+version: 1
+
+snapshot_prefix: "snapshots"
+latest_pointer: "latest.json"
+# chunk text cannot be redistributed, so the dataset repo is always private
+o_private: true
+run_log_path: "results/ingest_runs.jsonl"
+work_dir: ".tmp/release"
+watch_interval_seconds: 3600
+upload_timeout_seconds: 1800

@@ -1,0 +1,129 @@
+name: Daily index release
+
+# Restores the latest accepted snapshot, ingests papers submitted since then, runs the R-fast
+# gate, and publishes a new snapshot only when the gate passes; a failed gate opens an issue.
+# Every run appends its record to results/ingest_runs.jsonl and commits it.
+
+on:
+  schedule:
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: daily-index
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    services:
+      qdrant:
+        image: qdrant/qdrant:v1.19.2
+        ports:
+          - 6333:6333
+    env:
+      UV_CACHE_DIR: ${{ github.workspace }}/.cache/uv
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      FASTEMBED_CACHE_PATH: ${{ github.workspace }}/.cache/fastembed
+      TMPDIR: ${{ github.workspace }}/.tmp
+      PYTHONHASHSEED: "0"
+      QDRANT_URL: http://127.0.0.1:6333
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_INDEX_REPO: ${{ vars.HF_INDEX_REPO }}
+      MERIDIAN_ENV_FILE: /dev/null
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Record start time
+        id: start
+        run: echo "utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.0"
+          enable-cache: true
+
+      - name: Install Python and dependencies
+        run: |
+          mkdir -p .tmp
+          uv python install 3.11.9
+          uv sync --frozen --python 3.11.9
+
+      - name: Cache models
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/huggingface
+            .cache/fastembed
+          key: models-${{ hashFiles('configs/index.yaml') }}
+
+      - name: Wait for Qdrant
+        run: |
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:6333/readyz && exit 0
+            sleep 2
+          done
+          exit 1
+
+      - name: Restore latest accepted snapshot
+        run: uv run --frozen meridian release restore --work-dir .tmp/release
+
+      - name: Ingest new papers and run the R-fast gate
+        id: ingest
+        run: |
+          set +e
+          uv run --frozen meridian ingest --since last_success --deadline-minutes 100 > .tmp/ingest.json
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Publish snapshot
+        if: steps.ingest.outputs.exit_code == '0'
+        run: uv run --frozen meridian release publish --work-dir .tmp/release
+
+      - name: Append run record
+        if: always()
+        run: |
+          uv run --frozen meridian release runlog \
+            --ingest-output .tmp/ingest.json \
+            --publish-output .tmp/release/publish.json \
+            --exit-code "${{ steps.ingest.outputs.exit_code || 1 }}" \
+            --run-id "${{ github.run_id }}" \
+            --started-utc "${{ steps.start.outputs.utc }}" \
+            --report-output .tmp/gate_report.md
+
+      - name: Open an issue with the gate report
+        if: always() && steps.ingest.outputs.exit_code != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ ! -f .tmp/gate_report.md ]; then
+            echo "Daily index run ${{ github.run_id }} failed before the gate ran." > .tmp/gate_report.md
+          fi
+          gh issue create \
+            --title "Daily index run ${{ github.run_id }} did not publish" \
+            --body-file .tmp/gate_report.md
+
+      - name: Commit the run log
+        if: always()
+        run: |
+          git config user.name "meridian-index-bot"
+          git config user.email "meridian-index-bot@users.noreply.github.com"
+          git add results/ingest_runs.jsonl
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore(index): record daily index run ${{ github.run_id }}"
+          git pull --rebase origin "${{ github.ref_name }}"
+          git push origin "HEAD:${{ github.ref_name }}"
+
+      - name: Fail on an aborted or broken run
+        if: always() && steps.ingest.outputs.exit_code != '0' && steps.ingest.outputs.exit_code != '2'
+        run: |
+          echo "ingest exited with ${{ steps.ingest.outputs.exit_code }}"
+          exit 1

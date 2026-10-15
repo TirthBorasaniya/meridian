@@ -88,3 +88,21 @@ split dev by pair (rejected: dev queries would share papers with training querie
 Consequences: the adapted model is trained partly on papers that are not in the index. That
 matches the corpus topic and keeps R a true held-out set. The model is promoted only through
 the rebuild gate.
+
+## D-006: Releases restore into a fresh copy, and answer caches key on the index revision
+Status: accepted (2026-10-14)
+Context: daily increments write into the live `meridian_v{N}`, so consecutive releases are
+snapshots of the same version number. Restoring a snapshot over the live collection would
+interrupt serving. An answer cache keyed only on `N` would also survive an increment that
+deleted superseded chunks the cached answer cites.
+Decision: a release is restored into `meridian_v{N}_r{YYYYMMDDHHMM}`; the alias then moves in
+one request, and the previous copy of the same version is dropped. `parse_version` reads the
+version through the suffix, and releases record the base name. Answer and semantic caches key
+on `{N}:{snapshot or last ingest}`, so every accepted increment invalidates cached answers.
+`latest.json` is uploaded after every other release file, and restore verifies each file's
+SHA-256 before installing it.
+Alternatives: restore in place with snapshot priority (rejected: the collection is
+unavailable or inconsistent during recovery); a new version number per day (rejected: the
+version number would stop meaning "built with this configuration").
+Consequences: a restore briefly holds two copies. The answer cache restarts empty after every
+daily release, which bounds its hit rate on the demo.

@@ -161,13 +161,16 @@ class Runtime:
             Answer, status, citations, session id, index version, cache flag, and timings.
         """
         started = time.perf_counter()
-        index_version = self.index_info().index_version or 0
+        info = self.index_info()
+        index_version = info.index_version or 0
+        # daily increments keep the version number, so the cache key also carries the revision
+        cache_version = f"{index_version}:{info.snapshot or info.last_ingest or ''}"
         o_session_independent = self.agent.history_length(session_id) == 0 and not paper_filter
         cache_config = self.serving_config.cache
         if o_session_independent and cache_config.o_answer_cache:
-            cached = self.answer_cache.get(question, True, index_version)
+            cached = self.answer_cache.get(question, True, cache_version)
             if cached is None and self.semantic_cache is not None and cache_config.o_semantic_cache:
-                cached = self.semantic_cache.lookup(question, index_version)
+                cached = self.semantic_cache.lookup(question, cache_version)
             if cached is not None:
                 emit({"type": "token", "text": cached["answer"]})
                 self.agent.record_turn(session_id, question, strip_citations(cached["answer"]))
@@ -204,9 +207,9 @@ class Runtime:
             and result.status in CACHEABLE_STATUS_SET
             and result.fallback != "web"
         ):
-            self.answer_cache.put(question, True, index_version, payload)
+            self.answer_cache.put(question, True, cache_version, payload)
             if self.semantic_cache is not None and cache_config.o_semantic_cache:
-                self.semantic_cache.store(question, index_version, payload)
+                self.semantic_cache.store(question, cache_version, payload)
         return {
             **payload,
             "session_id": session_id,

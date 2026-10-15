@@ -515,6 +515,29 @@ class EmbedderConfig(VersionedConfig):
     hub: HubConfig
 
 
+# ============= Release =============
+
+
+class ReleaseConfig(VersionedConfig):
+    """configs/release.yaml."""
+
+    snapshot_prefix: str
+    latest_pointer: str
+    o_private: bool
+    run_log_path: str
+    work_dir: str
+    watch_interval_seconds: int = Field(gt=0)
+    upload_timeout_seconds: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def _check_private(self) -> "ReleaseConfig":
+        if not self.o_private:
+            raise ValueError(
+                "the index dataset repo must stay private: chunk text is not redistributable"
+            )
+        return self
+
+
 # ============= Scheduler =============
 
 
@@ -569,6 +592,12 @@ def get_serving_config(profile: str = "serving") -> ServingConfig:
 
 
 @cache
+def get_release_config() -> ReleaseConfig:
+    """Return configs/release.yaml."""
+    return load_config(ReleaseConfig, config_dir() / "release.yaml")
+
+
+@cache
 def get_scheduler_config() -> SchedulerConfig:
     """Return configs/scheduler.yaml."""
     return load_config(SchedulerConfig, config_dir() / "scheduler.yaml")
@@ -584,5 +613,6 @@ def clear_config_caches() -> None:
         get_scheduler_config,
         get_agent_config,
         get_serving_config,
+        get_release_config,
     ):
         accessor.cache_clear()

@@ -96,6 +96,15 @@ def _add_release_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--work-dir", default=".tmp/release")
 
 
+def _add_runlog_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--ingest-output", default=None)
+    parser.add_argument("--publish-output", default=None)
+    parser.add_argument("--exit-code", type=int, required=True)
+    parser.add_argument("--run-id", required=True)
+    parser.add_argument("--started-utc", required=True)
+    parser.add_argument("--report-output", default=".tmp/gate_report.md")
+
+
 COMMAND_LIST: list[CommandSpec] = [
     (
         ("backfill",),
@@ -222,6 +231,12 @@ COMMAND_LIST: list[CommandSpec] = [
         "meridian.release.restore:cli_restore",
         "restore the latest accepted snapshot listed in latest.json",
         _add_release_args,
+    ),
+    (
+        ("release", "runlog"),
+        "meridian.release.runlog:cli_runlog",
+        "append this run's record to results/ingest_runs.jsonl",
+        _add_runlog_args,
     ),
     (
         ("serve",),
