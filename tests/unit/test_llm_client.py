@@ -10,6 +10,7 @@ from meridian.common.llm_client import (
     SqliteResponseCache,
     cache_key,
     strip_json_fences,
+    strip_reasoning,
     usage_scope,
 )
 from tests.fakes import ScriptedTransport
@@ -44,12 +45,14 @@ def test_cache_hit_skips_the_transport(tmp_path):
 def test_role_parameters_are_sent():
     transport = ScriptedTransport(lambda model, messages, params: "{}")
     client = LLMClient(get_models_config(), transport, MemoryResponseCache())
-    client.chat("judge", MESSAGES, json_mode=True)
+    client.chat("generator", MESSAGES, json_mode=True)
     model, _messages, params = transport.request_list[0]
-    judge = get_models_config().role("judge")
-    assert model == judge.model
-    assert params["reasoning_effort"] == judge.reasoning_effort
+    generator = get_models_config().role("generator")
+    assert model == generator.model
+    assert params["reasoning_effort"] == generator.reasoning_effort
     assert params["json_mode"] is True
+    client.chat("judge", MESSAGES)
+    assert "reasoning_effort" not in transport.request_list[1][2]
 
 
 def test_retry_honors_retry_after_then_succeeds():
@@ -121,3 +124,12 @@ def test_chat_json_parses_fenced_objects_and_rejects_others():
     bad = LLMClient(get_models_config(), ScriptedTransport(lambda *_: "[1]"), None)
     with pytest.raises(ValueError):
         bad.chat_json("router", MESSAGES)
+
+
+def test_inline_reasoning_is_stripped_before_caching():
+    reply = '<think>step one\nstep two</think>\n{"supported": true}'
+    assert strip_reasoning(reply) == '{"supported": true}'
+    cache = MemoryResponseCache()
+    client = LLMClient(get_models_config(), ScriptedTransport(lambda *_: reply), cache)
+    assert client.chat_json("judge", MESSAGES) == {"supported": True}
+    assert client.chat("judge", MESSAGES).text == '{"supported": true}'

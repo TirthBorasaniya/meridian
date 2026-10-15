@@ -118,7 +118,7 @@ one request only when no metric is worse by more than its tolerance.
 ### Agent
 The router answers, asks for clarification, or refuses out-of-scope requests by naming the
 corpus topic. Grading keeps chunks whose reranker score is at least 0.7 and drops those below
-0.2. Only the band in between goes to the 8B grader. With fewer than two supporting chunks,
+0.2. Only the band in between goes to the fast-tier grader (`openai/gpt-oss-20b`). With fewer than two supporting chunks,
 the agent rewrites the query up to twice, then falls back to web search if enabled, else
 declines. The generator cites short aliases that are resolved to chunk ids afterwards. The
 verifier drops citations outside the context, judges cited sentences with a different model,

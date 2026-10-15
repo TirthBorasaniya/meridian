@@ -49,7 +49,7 @@ def test_judge_must_differ_from_generator(tmp_path, repo_root):
 
 def test_pair_writer_rejects_llama(tmp_path, repo_root):
     raw_dict = yaml.safe_load((repo_root / "configs" / "models.yaml").read_text())
-    raw_dict["roles"]["pair_writer"]["model"] = "llama-3.3-70b-versatile"
+    raw_dict["roles"]["pair_writer"]["model"] = "meta-llama/llama-4-scout-17b-16e-instruct"
     bad_path = tmp_path / "models.yaml"
     bad_path.write_text(yaml.safe_dump(raw_dict))
     with pytest.raises(ValidationError, match="Llama"):
@@ -90,3 +90,15 @@ def test_seed_id_list_has_the_recorded_corpus(repo_root):
     assert len(id_list) == 199
     assert len(set(id_list)) == 199
     assert "2309.12481v2" not in id_list
+
+
+def test_model_tiers_after_the_llama_retirement():
+    models_config = get_models_config()
+    for role in ("router", "rewriter", "grader"):
+        assert models_config.role(role).model == "openai/gpt-oss-20b"
+    assert models_config.role("generator").model == "openai/gpt-oss-120b"
+    assert models_config.role("judge").model == "qwen/qwen3.6-27b"
+    for role_config in models_config.roles.values():
+        assert "llama" not in role_config.model.lower()
+        assert "qwen3.8" not in role_config.model
+        assert role_config.model in models_config.prices_usd_per_million_tokens

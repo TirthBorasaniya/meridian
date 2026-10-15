@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 import random
+import re
 import sqlite3
 import threading
 import time
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 CACHE_SCHEMA_VERSION = 1
 JSON_FENCE_CHARS = "`"
+THINK_BLOCK_PATTERN = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 
 # ============= Responses and usage =============
@@ -308,6 +310,11 @@ class GroqTransport:
 # ============= Client =============
 
 
+def strip_reasoning(text: str) -> str:
+    """Remove inline `<think>...</think>` reasoning, which some models put in the content."""
+    return THINK_BLOCK_PATTERN.sub("", text).strip()
+
+
 def strip_json_fences(text: str) -> str:
     """Remove Markdown code fences around a JSON body."""
     stripped = text.strip()
@@ -426,6 +433,7 @@ class LLMClient:
             completion = self._complete_with_retries(
                 role_config.model, message_list, param_dict, on_delta
             )
+            completion.text = strip_reasoning(completion.text)
             response = LLMResponse(
                 text=completion.text,
                 model=role_config.model,

@@ -123,3 +123,30 @@ second release format beside the one CI already verifies); a managed Qdrant clus
 an always-on service the project does not otherwise need).
 Consequences: one container, two processes, and the same snapshot format end to end. The local
 mode check result is recorded but does not change the runtime.
+
+## D-008: Groq tiers after the Llama retirement, and a Preview judge
+Status: accepted (2026-10-15)
+Context: Groq shut down `llama-3.1-8b-instant` and `llama-3.3-70b-versatile` on 2026-08-16,
+which served the router, rewriter, grader, and generator roles.
+Decision: the fast roles (router, rewriter, grader) use `openai/gpt-oss-20b`, and the strong
+roles (generator, question writer, pair writer) use `openai/gpt-oss-120b`. The judge must differ
+from the generator, so it uses `qwen/qwen3.6-27b`. That is a Groq Preview model: Preview models
+are intended for evaluation, can change without notice, and can be withdrawn on short notice.
+If it disappears, the judge needs another non-generator model, and judgments cached under the
+old model are not reused because the cache key includes the model. The gpt-oss models are
+reasoning models, so their roles set `reasoning_effort: low` and `max_tokens` leaves room for
+reasoning tokens ahead of the short JSON answer. The client also strips inline
+`<think>...</think>` blocks from completions, because some models return reasoning in the
+content, and a block left in place would break JSON parsing. The rule that no Llama model
+writes training pairs stays, now with its rationale stated as the Llama license in general.
+Alternatives: gpt-oss-120b as both generator and judge (rejected: SPEC S4.3 requires a judge
+different from the generator, so faithfulness would be self-assessed).
+Consequences:
+- The question writer and the reference-answer drafter are now the same model as the
+  generator. R labels and references are produced before and independently of any answer, and
+  the judge is a different model, but the shared model is a limitation to report.
+- The README's note that the judge shares a provider with the generator still holds.
+- Token prices in `configs/models.yaml` are unconfirmed. The `qwen/qwen3.6-27b` entry is
+  carried over from `qwen/qwen3-32b`, and the 20b entry is from memory. Both must be checked
+  before E3, and `prices_checked_on` stays null until then.
+- No reference to `qwen/qwen3.8-27b` existed in the repository, so no replacement was needed.

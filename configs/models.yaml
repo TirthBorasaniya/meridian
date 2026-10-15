@@ -1,5 +1,5 @@
 # LLM roles, models, and prices. The judge never equals the generator, and no Llama model
-# writes training data (the Llama 3.3 license would constrain the published model's name).
+# writes training data (a Llama license would constrain the published model's name).
 version: 1
 
 provider: "groq"
@@ -9,43 +9,53 @@ backoff_base_seconds: 2.0
 backoff_max_seconds: 60.0
 
 roles:
+  # fast tier: openai/gpt-oss-20b. These are reasoning models, so reasoning is kept low and
+  # max_tokens leaves room for reasoning tokens ahead of the short JSON answer.
   router:
-    model: "llama-3.1-8b-instant"
+    model: "openai/gpt-oss-20b"
     temperature: 0.0
-    max_tokens: 200
+    max_tokens: 512
+    reasoning_effort: "low"
   rewriter:
-    model: "llama-3.1-8b-instant"
+    model: "openai/gpt-oss-20b"
     temperature: 0.0
-    max_tokens: 120
+    max_tokens: 512
+    reasoning_effort: "low"
   grader:
-    model: "llama-3.1-8b-instant"
+    model: "openai/gpt-oss-20b"
     temperature: 0.0
-    max_tokens: 60
+    max_tokens: 512
+    reasoning_effort: "low"
+  # strong tier: openai/gpt-oss-120b
   generator:
-    model: "llama-3.3-70b-versatile"
-    temperature: 0.0
-    max_tokens: 900
-  judge:
     model: "openai/gpt-oss-120b"
     temperature: 0.0
     max_tokens: 2048
     reasoning_effort: "low"
+  # the judge must differ from the generator. qwen/qwen3.6-27b is a Groq Preview model:
+  # Preview models are for evaluation, can change without notice, and can be withdrawn on
+  # short notice. If it is withdrawn, pick another non-generator model (DECISIONS.md D-008).
+  judge:
+    model: "qwen/qwen3.6-27b"
+    temperature: 0.0
+    max_tokens: 4096
   question_writer:
     model: "openai/gpt-oss-120b"
     temperature: 0.0
-    max_tokens: 1024
+    max_tokens: 2048
     reasoning_effort: "low"
   pair_writer:
     model: "openai/gpt-oss-120b"
     temperature: 0.7
-    max_tokens: 1024
+    max_tokens: 2048
     reasoning_effort: "low"
 
 # USD per million tokens. Used only to convert measured token counts into cost in E3.
 # Values must be confirmed against the provider's published pricing before E3 is run.
 prices_usd_per_million_tokens:
-  "llama-3.1-8b-instant": { input: 0.05, output: 0.08 }
-  "llama-3.3-70b-versatile": { input: 0.59, output: 0.79 }
+  "openai/gpt-oss-20b": { input: 0.075, output: 0.30 }
   "openai/gpt-oss-120b": { input: 0.15, output: 0.75 }
+  # carried over from qwen/qwen3-32b; qwen/qwen3.6-27b has no confirmed price here
+  "qwen/qwen3.6-27b": { input: 0.29, output: 0.59 }
 prices_source: "unconfirmed; check https://groq.com/pricing and update prices_checked_on"
 prices_checked_on: null
