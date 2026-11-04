@@ -127,8 +127,8 @@ first snapshot exists in the dataset repo.
 container. At startup it restores the latest accepted snapshot and checks for a newer one
 every hour. Citations show at most two sentences of excerpt and link to the arXiv abstract
 page, web fallback is disabled, and requests are limited to 10 per minute and 100 per day per
-address. A Space on free hardware sleeps when idle, so the first request after a pause waits
-for a cold start. `make deploy-space` uploads the Space files.
+address. A Docker Space requires a paid Hugging Face plan. A Space on free hardware sleeps when idle,
+so the first request after a pause waits for a cold start. `make deploy-space` uploads the Space files.
 
 ## Evaluation
 
