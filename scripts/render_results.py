@@ -1,6 +1,7 @@
 """Render README tables from `results/*.json` between `<!-- results:<name>:start -->` and
-`<!-- results:<name>:end -->` markers. A missing results file renders as "not yet measured",
-never as a number. `--check` exits non-zero when the README differs from the rendering (CI).
+`<!-- results:<name>:end -->` markers. A block is filled only when its results file exists and
+stays empty otherwise; the headline block lists only the measures that exist. `--check` exits
+non-zero when the README differs from the rendering (CI) and passes when no results exist.
 
 Usage::
 
@@ -30,14 +31,6 @@ EXPERIMENT_FILE_DICT = {
     "e4": "e4_ingest.json",
     "e5": "e5_embedder.json",
     "e6": "e6_demo.json",
-}
-MAKE_TARGET_DICT = {
-    "e1": "make eval-retrieval",
-    "e2": "make eval-answers",
-    "e3": "make eval-serving",
-    "e4": "make eval-ingest",
-    "e5": "make eval-embedder",
-    "e6": "make eval-demo",
 }
 
 
@@ -84,14 +77,6 @@ def provenance(result: dict) -> str:
         f"\nRun `{result['run_id']}`, commit `{result['git_sha']}`, "
         f"config `{result['config_path']}` (sha256 `{result['config_sha256'][:12]}`), "
         f"{result['environment']['hardware']}.\n"
-    )
-
-
-def missing_block(name: str) -> str:
-    """Return the text of a block whose results file does not exist."""
-    return (
-        f"Not yet measured. Run `{MAKE_TARGET_DICT[name]}` to produce "
-        f"`results/{EXPERIMENT_FILE_DICT[name]}`.\n"
     )
 
 
@@ -145,6 +130,9 @@ def render_headline(results: dict) -> str:
         ),
         ("Demo cold start", secs(dig(e6, "cold_start", "seconds")), "E6"),
     ]
+    row_list = [entry for entry in row_list if entry[1] != MISSING]
+    if not row_list:
+        return ""
     line_list = ["| Measure | Value | Source |", "|---|---|---|"]
     line_list += [f"| {label} | {value} | {source} |" for label, value, source in row_list]
     return "\n".join(line_list) + "\n"
@@ -412,7 +400,7 @@ def render_block(name: str, results: dict[str, dict]) -> str:
     if name not in RENDERER_DICT:
         raise KeyError(f"unknown results block {name!r}")
     if name not in results:
-        return missing_block(name)
+        return ""
     return RENDERER_DICT[name](results[name])
 
 

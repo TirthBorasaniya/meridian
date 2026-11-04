@@ -32,14 +32,12 @@ def _summary(value: float) -> dict:
     }
 
 
-def test_missing_results_render_as_not_measured():
+def test_missing_results_leave_blocks_empty():
     module = _renderer()
     text = "<!-- results:e2:start -->\nold\n<!-- results:e2:end -->\n"
     rendered = module.render_readme(text, {})
-    assert "Not yet measured. Run `make eval-answers`" in rendered
-    assert "old" not in rendered
-    headline = module.render_block("headline", {})
-    assert headline.count("not yet measured") == 11
+    assert rendered == "<!-- results:e2:start -->\n<!-- results:e2:end -->\n"
+    assert module.render_block("headline", {}) == ""
 
 
 def test_e1_renders_from_a_results_file(tmp_path):
@@ -62,7 +60,10 @@ def test_e1_renders_from_a_results_file(tmp_path):
     block = module.render_block("e1", results)
     assert "| hybrid_rerank | 0.8125 |" in block
     assert "2 reviewed invalid and excluded" in block
-    assert "0.8125" in module.render_block("headline", results)
+    headline = module.render_block("headline", results)
+    assert "0.8125" in headline
+    assert "not yet measured" not in headline
+    assert headline.count("\n") == 4
 
 
 def test_committed_readme_is_current():

@@ -1,9 +1,5 @@
 # Meridian
 
-**Public demo:** not deployed yet. The demo runs as a Hugging Face Docker Space (`space/`); its
-URL is added here when the Space is live. A Space on free hardware sleeps when idle, so the
-first request after a pause waits for the cold start that E6 measures below.
-
 Meridian is a research assistant and retrieval service over a maintained corpus of arXiv
 papers on LLM reasoning and evaluation. It answers with a citation to a specific paper section
 after every sentence that states a fact. When the corpus does not support an answer, it says
@@ -11,27 +7,6 @@ so instead of guessing. When retrieval is weak, it rewrites the query, and it ca
 web search with clearly marked external sources. The corpus grows daily. Every index change is
 versioned, and an index version goes live only if retrieval quality on a labeled query set
 does not regress.
-
-## Results
-
-Every number below is rendered by `make results` from `results/*.json`, which only the
-committed evaluation scripts write. A row marked "not yet measured" has no results file yet.
-
-<!-- results:headline:start -->
-| Measure | Value | Source |
-|---|---|---|
-| Retrieval recall@5, hybrid plus rerank (R-full) | not yet measured | E1 |
-| Retrieval nDCG@10, hybrid plus rerank (R-full) | not yet measured | E1 |
-| RAGAS faithfulness (A) | not yet measured | E2 |
-| Citation precision (A) | not yet measured | E2 |
-| Refusal accuracy (O) | not yet measured | E2 |
-| End-to-end latency p95 | not yet measured | E3 |
-| Cost per answer (USD) | not yet measured | E3 |
-| Answer cache hit rate on repeats | not yet measured | E3 |
-| Scheduled index runs recorded | not yet measured | E4 |
-| Adapted embedder recall@5 change, full pipeline | not yet measured | E5 |
-| Demo cold start | not yet measured | E6 |
-<!-- results:headline:end -->
 
 ## Architecture
 
@@ -143,43 +118,71 @@ live only through the rebuild gate.
 ### Scheduled releases
 A daily GitHub Actions job restores the latest accepted snapshot, ingests new papers, runs the
 R-fast gate, and publishes a new snapshot to the private dataset repo only when the gate
-passes. Otherwise it opens an issue. Each run appends to `results/ingest_runs.jsonl`.
+passes. Otherwise it opens an issue. Each run appends to `results/ingest_runs.jsonl`. The job
+skips itself unless the `HF_TOKEN` secret and the `HF_INDEX_REPO` variable are set and a
+first snapshot exists in the dataset repo.
+
+### Demo Space
+`space/` holds a Docker Space image that runs the API, the UI, and a Qdrant server in one
+container. At startup it restores the latest accepted snapshot and checks for a newer one
+every hour. Citations show at most two sentences of excerpt and link to the arXiv abstract
+page, web fallback is disabled, and requests are limited to 10 per minute and 100 per day per
+address. A Space on free hardware sleeps when idle, so the first request after a pause waits
+for a cold start. `make deploy-space` uploads the Space files.
 
 ## Evaluation
 
-Datasets are committed under `eval/` and described in `eval/README.md`: the retrieval set R
-(150 synthetic questions with span labels, 30 reviewed by hand, R-fast is 40 of them), the
-answer set A (75 questions with reference answers, A-fast is 20), and the out-of-scope set O
-(25 questions). The judge model is never the generator model.
+Datasets live under `eval/` and are described in `eval/README.md`: the retrieval set R (150
+synthetic questions with span labels, 30 reviewed by hand, R-fast is 40 of them), the answer
+set A (75 questions, A-fast is 20, with reference answers drafted by
+`scripts/build_answer_references.py` and reviewed by hand), and the out-of-scope set O (25
+questions). The judge model is never the generator model. Each experiment writes one JSON
+file under `results/` that records the run id, git SHA, config path and hash, and
+environment. `make results` renders the tables for the files that exist into the marked
+blocks below, and `make results-check` verifies that the README matches them.
+
+<!-- results:headline:start -->
+<!-- results:headline:end -->
 
 ### E1: retrieval quality and stage latency (`make eval-retrieval`)
+Recall@5, recall@10, MRR@10, and nDCG@10 on R-full, with p50 and p95 latency per stage, for
+dense only, BM25 only, hybrid RRF, hybrid RRF plus rerank, and the previous in-process BM25
+path. It also varies the prefetch limit and the chunk size. Output: `results/e1_retrieval.json`.
 <!-- results:e1:start -->
-Not yet measured. Run `make eval-retrieval` to produce `results/e1_retrieval.json`.
 <!-- results:e1:end -->
 
 ### E2: answer quality (`make eval-answers`)
+RAGAS faithfulness, response relevancy, context precision with reference, and context recall
+on A, plus citation precision, the unsupported-sentence rate, and refusal accuracy on O.
+Output: `results/e2_answers.json`.
 <!-- results:e2:start -->
-Not yet measured. Run `make eval-answers` to produce `results/e2_answers.json`.
 <!-- results:e2:end -->
 
 ### E3: serving latency, cost, and caches (`make eval-serving`)
+End-to-end latency, tokens, cost, and LLM calls per answer with and without score-band
+grading, cache hit rates, and the semantic cache wrong-hit rate. Output:
+`results/e3_serving.json`.
 <!-- results:e3:start -->
-Not yet measured. Run `make eval-serving` to produce `results/e3_serving.json`.
 <!-- results:e3:end -->
 
 ### E4: daily ingestion (`make eval-ingest`)
+Seven simulated daily batches replayed from historical dates, with papers, chunks, failures,
+gate decisions, and the recall@5 trajectory, plus the record of every scheduled workflow run
+from `results/ingest_runs.jsonl`. Output: `results/e4_ingest.json`.
 <!-- results:e4:start -->
-Not yet measured. Run `make eval-ingest` to produce `results/e4_ingest.json`.
 <!-- results:e4:end -->
 
 ### E5: domain-adapted embedder (`make eval-embedder`)
+The base and adapted embedding models on R-full for dense only and for the full pipeline,
+with training time, hardware, and the rebuild gate decision. Output:
+`results/e5_embedder.json`.
 <!-- results:e5:start -->
-Not yet measured. Run `make eval-embedder` to produce `results/e5_embedder.json`.
 <!-- results:e5:end -->
 
 ### E6: public demo (`make eval-demo`)
+Cold start time, p50 and p95 latency for 20 scripted questions, and rate-limit behavior of a
+deployed Space. Output: `results/e6_demo.json`.
 <!-- results:e6:start -->
-Not yet measured. Run `make eval-demo` to produce `results/e6_demo.json`.
 <!-- results:e6:end -->
 
 ## Design decisions

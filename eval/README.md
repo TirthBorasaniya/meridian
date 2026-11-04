@@ -1,13 +1,13 @@
 # Evaluation datasets
 
-All datasets are committed. Results computed from them are written only by the scripts under
-`src/meridian/eval/` into `results/`.
+Datasets are committed once built and reviewed. Results computed from them are written only by
+the scripts under `src/meridian/eval/` into `results/`.
 
 | File | Set | Built by | Contents |
 |---|---|---|---|
 | `retrieval_set.jsonl` | R (R-full, with R-fast flagged by `in_fast`) | `meridian build-retrieval-set`, then `scripts/review_retrieval_set.py` | 150 questions with labeled spans |
 | `retrieval_set_meta.json` | R | same | generation statistics and the review summary |
-| `answer_set.jsonl` | A (A-fast flagged by `in_fast`) | migrated question set, references from `scripts/build_answer_references.py` | 75 questions with reference answers |
+| `answer_set.jsonl` | A (A-fast flagged by `in_fast`) | migrated question set, references from `scripts/build_answer_references.py` | 75 questions; reference answers are drafted by the script and marked `reference_reviewed` after a manual check |
 | `out_of_scope.jsonl` | O | written by hand | 25 questions outside the corpus topic |
 | `cache_probes.jsonl` | E3 semantic cache probes | written by hand | paraphrase and near-miss question pairs |
 
