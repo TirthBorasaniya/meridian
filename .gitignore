@@ -87,3 +87,7 @@ node_modules/
 /space/.cache/
 /results/*.tmp
 !tests/fixtures/e2e_llm_cache.sqlite
+
+# Index snapshots and release work files
+/snapshots/
+*.snapshot
