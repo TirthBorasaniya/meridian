@@ -2,7 +2,9 @@ name: Daily index release
 
 # Restores the latest accepted snapshot, ingests papers submitted since then, runs the R-fast
 # gate, and publishes a new snapshot only when the gate passes; a failed gate opens an issue.
-# Every run appends its record to results/ingest_runs.jsonl and commits it.
+# Every run appends its record to results/ingest_runs.jsonl and commits it. The release job
+# runs only when the HF_TOKEN secret and HF_INDEX_REPO variable are set and the dataset repo
+# already holds a first snapshot pointer (latest.json); otherwise the run ends after the check.
 
 on:
   schedule:
@@ -18,7 +20,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      ready: ${{ steps.probe.outputs.ready }}
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_INDEX_REPO: ${{ vars.HF_INDEX_REPO }}
+    steps:
+      - name: Probe configuration and the first release
+        id: probe
+        run: |
+          ready=false
+          if [ -z "$HF_TOKEN" ] || [ -z "$HF_INDEX_REPO" ]; then
+            echo "HF_TOKEN or HF_INDEX_REPO is not set; skipping the release."
+          else
+            status=$(curl -s -o /dev/null -w '%{http_code}' \
+              -H "Authorization: Bearer $HF_TOKEN" \
+              "https://huggingface.co/datasets/${HF_INDEX_REPO}/resolve/main/latest.json" || true)
+            case "$status" in
+              200) ready=true ;;
+              401|403|404) echo "No readable latest.json (HTTP $status); skipping the release." ;;
+              *) echo "Unexpected status $status from the dataset repo."; exit 1 ;;
+            esac
+          fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+
   release:
+    needs: check
+    if: needs.check.outputs.ready == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     services:
